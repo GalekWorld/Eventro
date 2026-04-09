@@ -1,0 +1,808 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  VENUE_PENDING
+  VENUE
+  ADMIN
+}
+
+enum VenueRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum GroupPrivacy {
+  PUBLIC
+  PRIVATE
+}
+
+enum GroupMembershipRole {
+  OWNER
+  MEMBER
+}
+
+enum NotificationType {
+  FOLLOW
+  GROUP_JOIN
+  GROUP_REQUEST
+  GROUP_INVITE
+  VENUE_APPROVED
+  GROUP_MESSAGE
+  EVENT_MESSAGE
+  STORY_PUBLISHED
+  POST_LIKE
+  POST_COMMENT
+  COMMENT_LIKE
+  DIRECT_MESSAGE
+  USER_REPORT
+}
+
+enum LocationSharingMode {
+  GHOST
+  APPROXIMATE
+  EXACT
+}
+
+enum GroupJoinRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum UserReportStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
+enum TicketPurchaseStatus {
+  CONFIRMED
+  CANCELLED
+}
+
+enum EventTicketStatus {
+  ACTIVE
+  USED
+  CANCELLED
+}
+
+enum TicketAccessAction {
+  VALIDATED
+  DRINK_REDEEMED
+}
+
+enum PaymentProvider {
+  INTERNAL
+  STRIPE
+}
+
+enum PaymentCheckoutStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  EXPIRED
+}
+
+enum VenuePayoutStatus {
+  PENDING
+  IN_TRANSIT
+  PAID
+  FAILED
+  CANCELED
+}
+
+enum SecurityEventLevel {
+  INFO
+  WARN
+  CRITICAL
+}
+
+model User {
+  id                    String                 @id @default(cuid())
+  name                  String?
+  username              String?                @unique
+  bio                   String?
+  city                  String?
+  latitude              Float?
+  longitude             Float?
+  shareLocation         Boolean                @default(false)
+  locationSharingMode   LocationSharingMode    @default(GHOST)
+  locationSharedAt      DateTime?
+  avatarUrl             String?
+  stripeConnectedAccountId String?
+  stripeDetailsSubmitted Boolean                @default(false)
+  stripeChargesEnabled   Boolean                @default(false)
+  stripePayoutsEnabled   Boolean                @default(false)
+  stripeOnboardingComplete Boolean              @default(false)
+  stripeConnectLastSyncedAt DateTime?
+  email                 String                 @unique
+  passwordHash          String
+  role                  UserRole               @default(USER)
+  isVerified            Boolean                @default(false)
+  suspendedAt           DateTime?
+  suspensionReason      String?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+
+  sessions              Session[]
+  venueRequest          VenueRequest?
+  events                Event[]                @relation("EventOwner")
+  posts                 Post[]
+  postLikes             PostLike[]
+  postComments          PostComment[]
+  commentLikes          CommentLike[]
+  stories               Story[]
+  followers             Follow[]               @relation("UserFollowers")
+  following             Follow[]               @relation("UserFollowing")
+  blockedUsers          UserBlock[]            @relation("UserBlocksCreated")
+  blockedByUsers        UserBlock[]            @relation("UserBlocksReceived")
+  groupMemberships      GroupMembership[]
+  ownedGroups           Group[]                @relation("GroupOwner")
+  groupJoinRequests     GroupJoinRequest[]
+  groupInvitesReceived  GroupInvite[]          @relation("GroupInviteRecipient")
+  groupInvitesSent      GroupInvite[]          @relation("GroupInviteSender")
+  notifications         Notification[]         @relation("NotificationRecipient")
+  actions               Notification[]         @relation("NotificationActor")
+  groupMessages         GroupMessage[]
+  eventChatMemberships  EventChatParticipant[]
+  eventChatMessages     EventChatMessage[]
+  directConversationsA  DirectConversation[]   @relation("DirectConversationUserA")
+  directConversationsB  DirectConversation[]   @relation("DirectConversationUserB")
+  directMessages        DirectMessage[]        @relation("DirectMessageSender")
+  reportsMade           UserReport[]           @relation("UserReportReporter")
+  reportsReceived       UserReport[]           @relation("UserReportTarget")
+  resolvedReports       UserReport[]           @relation("UserReportResolver")
+  adminAuditLogs        AdminAuditLog[]
+  ticketPurchases       TicketPurchase[]       @relation("TicketPurchaseBuyer")
+  scannedTickets        EventTicket[]          @relation("EventTicketScanner")
+  ticketAccessLogs      EventTicketAccessLog[]
+  eventTickets          EventTicket[]          @relation("EventTicketBuyer")
+  paymentCheckouts      PaymentCheckout[]      @relation("PaymentCheckoutBuyer")
+  stripePayouts         VenueStripePayout[]
+  venueStaffAssignments VenueDoorStaff[]       @relation("VenueDoorStaffVenue")
+  venueDoorJobs         VenueDoorStaff[]       @relation("VenueDoorStaffMember")
+  venueDoorInvited      VenueDoorStaff[]       @relation("VenueDoorStaffAddedBy")
+  eventViews            EventView[]
+  securityEvents        SecurityEvent[]
+  passwordResetTokens   PasswordResetToken[]
+  usernameChanges       UsernameChange[]
+  pushSubscriptions     PushSubscription[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VenueRequest {
+  id              String             @id @default(cuid())
+  userId          String             @unique
+  businessName    String
+  city            String
+  latitude        Float?
+  longitude       Float?
+  address         String?
+  category        String?
+  description     String?
+  phone           String?
+  website         String?
+  instagram       String?
+  status          VenueRequestStatus @default(PENDING)
+  rejectionReason String?
+  reviewedAt      DateTime?
+  reviewedById    String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Event {
+  id             String            @id @default(cuid())
+  title          String
+  slug           String?           @unique
+  description    String?
+  imageUrl       String?
+  location       String
+  city           String
+  latitude       Float?
+  longitude      Float?
+  date           DateTime
+  endDate        DateTime?
+  price          Decimal?          @db.Decimal(10, 2)
+  ticketCapacity Int?
+  ticketsSold    Int               @default(0)
+  published      Boolean           @default(false)
+  ownerId        String
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  owner          User              @relation("EventOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  ticketTypes    EventTicketType[]
+  purchases      TicketPurchase[]
+  paymentCheckouts PaymentCheckout[]
+  tickets        EventTicket[]
+  chatParticipants EventChatParticipant[]
+  chatMessages   EventChatMessage[]
+  ticketAccessLogs EventTicketAccessLog[]
+  doorStaff      VenueDoorStaff[]             @relation("VenueDoorStaffEvent")
+  views          EventView[]
+}
+
+model EventTicketType {
+  id           String    @id @default(cuid())
+  eventId      String
+  name         String
+  description  String?
+  price        Decimal?  @db.Decimal(10, 2)
+  capacity     Int
+  soldCount    Int       @default(0)
+  includedDrinks Int     @default(0)
+  salesStart   DateTime?
+  salesEnd     DateTime?
+  isVisible    Boolean   @default(true)
+  sortOrder    Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  event        Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  purchases    TicketPurchase[]
+  paymentCheckouts PaymentCheckout[]
+  tickets      EventTicket[]
+
+  @@index([eventId, sortOrder])
+}
+
+model VenueDoorStaff {
+  id           String   @id @default(cuid())
+  venueId      String
+  eventId      String?
+  staffUserId  String
+  addedById    String
+  createdAt    DateTime @default(now())
+
+  venue        User     @relation("VenueDoorStaffVenue", fields: [venueId], references: [id], onDelete: Cascade)
+  event        Event?   @relation("VenueDoorStaffEvent", fields: [eventId], references: [id], onDelete: Cascade)
+  staffUser    User     @relation("VenueDoorStaffMember", fields: [staffUserId], references: [id], onDelete: Cascade)
+  addedBy      User     @relation("VenueDoorStaffAddedBy", fields: [addedById], references: [id], onDelete: Cascade)
+
+  @@unique([venueId, staffUserId, eventId])
+  @@index([staffUserId, createdAt])
+}
+
+model EventView {
+  id         String   @id @default(cuid())
+  eventId     String
+  viewerKey   String
+  viewerId    String?
+  viewedOn    DateTime
+  createdAt   DateTime @default(now())
+
+  event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  viewer      User?    @relation(fields: [viewerId], references: [id], onDelete: SetNull)
+
+  @@unique([eventId, viewerKey, viewedOn])
+  @@index([eventId, viewedOn])
+}
+
+model TicketPurchase {
+  id             String               @id @default(cuid())
+  checkoutId     String?              @unique
+  eventId        String
+  ticketTypeId   String
+  buyerId        String
+  quantity       Int
+  totalAmount    Decimal?             @db.Decimal(10, 2)
+  status         TicketPurchaseStatus @default(CONFIRMED)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  event          Event                @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  checkout       PaymentCheckout?     @relation(fields: [checkoutId], references: [id], onDelete: SetNull)
+  ticketType     EventTicketType      @relation(fields: [ticketTypeId], references: [id], onDelete: Cascade)
+  buyer          User                 @relation("TicketPurchaseBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+  tickets        EventTicket[]
+
+  @@index([buyerId, createdAt])
+  @@index([eventId, createdAt])
+}
+
+model PaymentCheckout {
+  id                     String                @id @default(cuid())
+  provider               PaymentProvider       @default(INTERNAL)
+  status                 PaymentCheckoutStatus @default(PENDING)
+  buyerId                String
+  eventId                String
+  ticketTypeId           String
+  quantity               Int
+  currency               String                @default("eur")
+  baseAmount             Int
+  revenueShareAmount     Int                   @default(0)
+  managementFeeAmount    Int                   @default(0)
+  applicationFeeAmount   Int                   @default(0)
+  totalAmount            Int
+  stripeCheckoutSessionId String?              @unique
+  stripePaymentIntentId  String?
+  stripeChargeId         String?
+  stripePaymentStatus    String?
+  failureReason          String?
+  lastWebhookEvent       String?
+  processingStartedAt    DateTime?
+  paymentConfirmedAt     DateTime?
+  completedAt            DateTime?
+  expiresAt              DateTime?
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+
+  buyer                  User                  @relation("PaymentCheckoutBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+  event                  Event                 @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  ticketType             EventTicketType       @relation(fields: [ticketTypeId], references: [id], onDelete: Cascade)
+  purchase               TicketPurchase?
+
+  @@index([buyerId, createdAt])
+  @@index([eventId, createdAt])
+  @@index([status, createdAt])
+}
+
+model VenueStripePayout {
+  id                        String            @id @default(cuid())
+  venueId                   String
+  stripePayoutId            String            @unique
+  stripeBalanceTransactionId String?
+  currency                  String            @default("eur")
+  amount                    Int
+  arrivalDate               DateTime?
+  status                    VenuePayoutStatus @default(PENDING)
+  failureCode               String?
+  failureMessage            String?
+  lastWebhookEvent          String?
+  paidAt                    DateTime?
+  createdAt                 DateTime          @default(now())
+  updatedAt                 DateTime          @updatedAt
+
+  venue                     User              @relation(fields: [venueId], references: [id], onDelete: Cascade)
+
+  @@index([venueId, createdAt])
+  @@index([status, createdAt])
+}
+
+model EventTicket {
+  id               String            @id @default(cuid())
+  purchaseId       String
+  eventId          String
+  ticketTypeId     String
+  buyerId          String
+  qrCode           String            @unique
+  status           EventTicketStatus @default(ACTIVE)
+  consumedDrinks   Int               @default(0)
+  validatedAt      DateTime?
+  validatedById    String?
+  createdAt        DateTime          @default(now())
+
+  purchase         TicketPurchase    @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  event            Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  ticketType       EventTicketType   @relation(fields: [ticketTypeId], references: [id], onDelete: Cascade)
+  buyer            User              @relation("EventTicketBuyer", fields: [buyerId], references: [id], onDelete: Cascade)
+  validatedBy      User?             @relation("EventTicketScanner", fields: [validatedById], references: [id], onDelete: SetNull)
+  accessLogs       EventTicketAccessLog[]
+
+  @@index([buyerId, createdAt])
+  @@index([eventId, createdAt])
+  @@index([qrCode])
+}
+
+model EventTicketAccessLog {
+  id               String            @id @default(cuid())
+  ticketId         String
+  eventId          String
+  action           TicketAccessAction
+  actorId          String
+  drinksDelta      Int               @default(0)
+  remainingDrinks  Int               @default(0)
+  notes            String?
+  createdAt        DateTime          @default(now())
+
+  ticket           EventTicket       @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  event            Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  actor            User              @relation(fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([eventId, createdAt])
+  @@index([ticketId, createdAt])
+}
+
+model EventChatParticipant {
+  id           String    @id @default(cuid())
+  eventId       String
+  userId        String
+  lastReadAt    DateTime?
+  createdAt     DateTime @default(now())
+
+  event         Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([eventId, createdAt])
+}
+
+model EventChatMessage {
+  id           String      @id @default(cuid())
+  eventId       String
+  authorId      String
+  body          String
+  hiddenAt      DateTime?
+  createdAt     DateTime    @default(now())
+
+  event         Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  author        User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  reports       UserReport[] @relation("ReportEventChatMessage")
+
+  @@index([eventId, createdAt])
+  @@index([authorId, createdAt])
+}
+
+model Post {
+  id          String        @id @default(cuid())
+  authorId    String
+  content     String
+  imageUrl    String?
+  showOnProfile Boolean     @default(true)
+  hiddenAt    DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  author      User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  likes       PostLike[]
+  comments    PostComment[]
+  reports     UserReport[]  @relation("ReportPost")
+
+  @@index([authorId, createdAt])
+}
+
+model PostLike {
+  id          String    @id @default(cuid())
+  postId      String
+  userId      String
+  createdAt   DateTime  @default(now())
+
+  post        Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([userId, createdAt])
+}
+
+model PostComment {
+  id          String        @id @default(cuid())
+  postId      String
+  authorId    String
+  body        String
+  hiddenAt    DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  post        Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author      User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  likes       CommentLike[]
+  reports     UserReport[]  @relation("ReportPostComment")
+
+  @@index([postId, createdAt])
+  @@index([authorId, createdAt])
+}
+
+model CommentLike {
+  id          String       @id @default(cuid())
+  commentId    String
+  userId       String
+  createdAt    DateTime     @default(now())
+
+  comment      PostComment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId])
+  @@index([userId, createdAt])
+}
+
+model Story {
+  id          String    @id @default(cuid())
+  authorId    String
+  imageUrl    String
+  caption     String?
+  durationSec Int       @default(10)
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+
+  author      User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([authorId, expiresAt])
+}
+
+model Follow {
+  id           String   @id @default(cuid())
+  followerId   String
+  followingId  String
+  createdAt    DateTime @default(now())
+
+  follower     User     @relation("UserFollowing", fields: [followerId], references: [id], onDelete: Cascade)
+  following    User     @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+}
+
+model UserBlock {
+  id           String   @id @default(cuid())
+  blockerId    String
+  blockedId    String
+  createdAt    DateTime @default(now())
+
+  blocker      User     @relation("UserBlocksCreated", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked      User     @relation("UserBlocksReceived", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+}
+
+model Group {
+  id            String             @id @default(cuid())
+  ownerId       String
+  name          String
+  slug          String             @unique
+  description   String?
+  privacy       GroupPrivacy       @default(PUBLIC)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  owner         User               @relation("GroupOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  memberships   GroupMembership[]
+  messages      GroupMessage[]
+  joinRequests  GroupJoinRequest[]
+  invites       GroupInvite[]
+}
+
+model GroupMembership {
+  id           String              @id @default(cuid())
+  groupId      String
+  userId       String
+  role         GroupMembershipRole @default(MEMBER)
+  lastReadAt   DateTime?
+  createdAt    DateTime            @default(now())
+
+  group        Group               @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+}
+
+model GroupJoinRequest {
+  id           String                  @id @default(cuid())
+  groupId       String
+  userId        String
+  status        GroupJoinRequestStatus @default(PENDING)
+  createdAt     DateTime                @default(now())
+  reviewedAt    DateTime?
+  reviewedById  String?
+
+  group         Group                   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user          User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@index([groupId, status])
+}
+
+model GroupInvite {
+  id            String   @id @default(cuid())
+  groupId        String
+  invitedUserId  String
+  invitedById    String
+  createdAt      DateTime @default(now())
+  acceptedAt     DateTime?
+  rejectedAt     DateTime?
+
+  group          Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  invitedUser    User     @relation("GroupInviteRecipient", fields: [invitedUserId], references: [id], onDelete: Cascade)
+  invitedBy      User     @relation("GroupInviteSender", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, invitedUserId])
+}
+
+model GroupMessage {
+  id            String        @id @default(cuid())
+  groupId        String
+  authorId       String
+  body           String
+  hiddenAt       DateTime?
+  createdAt      DateTime      @default(now())
+
+  group          Group         @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  author         User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  reports        UserReport[]  @relation("ReportGroupMessage")
+
+  @@index([groupId, createdAt])
+}
+
+model DirectConversation {
+  id            String          @id @default(cuid())
+  userAId       String
+  userBId       String
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  userA         User            @relation("DirectConversationUserA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB         User            @relation("DirectConversationUserB", fields: [userBId], references: [id], onDelete: Cascade)
+  messages      DirectMessage[]
+
+  @@unique([userAId, userBId])
+  @@index([updatedAt])
+}
+
+model DirectMessage {
+  id             String               @id @default(cuid())
+  conversationId String
+  senderId       String
+  body           String
+  hiddenAt       DateTime?
+  readAt         DateTime?
+  createdAt      DateTime             @default(now())
+
+  conversation   DirectConversation   @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User                 @relation("DirectMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  reports        UserReport[]         @relation("ReportDirectMessage")
+
+  @@index([conversationId, createdAt])
+  @@index([senderId, createdAt])
+}
+
+model Notification {
+  id           String            @id @default(cuid())
+  recipientId  String
+  actorId      String?
+  type         NotificationType
+  title        String
+  body         String?
+  link         String?
+  readAt       DateTime?
+  createdAt    DateTime          @default(now())
+
+  recipient    User              @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  actor        User?             @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([recipientId, createdAt])
+}
+
+model UserReport {
+  id              String         @id @default(cuid())
+  reporterId      String
+  resolvedById    String?
+  reportedUserId  String?
+  postId          String?
+  postCommentId   String?
+  groupMessageId  String?
+  eventChatMessageId String?
+  directMessageId String?
+  reason          String
+  status          UserReportStatus @default(OPEN)
+  adminNotes      String?
+  createdAt       DateTime       @default(now())
+  resolvedAt      DateTime?
+
+  reporter        User           @relation("UserReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  resolvedBy      User?          @relation("UserReportResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+  reportedUser    User?          @relation("UserReportTarget", fields: [reportedUserId], references: [id], onDelete: SetNull)
+  post            Post?          @relation("ReportPost", fields: [postId], references: [id], onDelete: Cascade)
+  postComment     PostComment?   @relation("ReportPostComment", fields: [postCommentId], references: [id], onDelete: Cascade)
+  groupMessage    GroupMessage?  @relation("ReportGroupMessage", fields: [groupMessageId], references: [id], onDelete: Cascade)
+  eventChatMessage EventChatMessage? @relation("ReportEventChatMessage", fields: [eventChatMessageId], references: [id], onDelete: Cascade)
+  directMessage   DirectMessage? @relation("ReportDirectMessage", fields: [directMessageId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+}
+
+model AdminAuditLog {
+  id          String   @id @default(cuid())
+  adminId      String
+  action       String
+  targetType   String
+  targetId     String
+  details      String?
+  createdAt    DateTime @default(now())
+
+  admin        User     @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId, createdAt])
+  @@index([targetType, targetId])
+}
+
+model RateLimitBucket {
+  key        String   @id
+  count      Int
+  resetAt    DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model SecurityEvent {
+  id         String             @id @default(cuid())
+  type       String
+  level      SecurityEventLevel @default(INFO)
+  key        String?
+  userId     String?
+  message    String
+  metadata   String?
+  createdAt  DateTime           @default(now())
+
+  user       User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([type, createdAt])
+  @@index([level, createdAt])
+  @@index([userId, createdAt])
+}
+
+model PasswordResetToken {
+  id         String   @id @default(cuid())
+  userId      String
+  tokenHash   String   @unique
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([expiresAt])
+}
+
+model UsernameChange {
+  id               String   @id @default(cuid())
+  userId           String
+  previousUsername String?
+  nextUsername     String
+  createdAt        DateTime @default(now())
+
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model PushSubscription {
+  id          String         @id @default(cuid())
+  userId      String
+  endpoint    String         @unique
+  p256dh      String
+  auth        String
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  lastSeenAt  DateTime?
+
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deliveries  PushDelivery[]
+
+  @@index([userId, createdAt])
+}
+
+model PushDelivery {
+  id              String             @id @default(cuid())
+  subscriptionId  String
+  notificationId  String?
+  type            NotificationType
+  title           String
+  body            String?
+  link            String?
+  deliveredAt     DateTime?
+  createdAt       DateTime           @default(now())
+
+  subscription    PushSubscription   @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId, deliveredAt, createdAt])
+}
