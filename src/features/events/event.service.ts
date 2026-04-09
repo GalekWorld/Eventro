@@ -1,8 +1,9 @@
 import { randomBytes } from "crypto";
-import { PaymentCheckoutStatus, PaymentProvider, Prisma, TicketAccessAction, UserRole } from "@prisma/client";
+import { PaymentCheckoutStatus, PaymentProvider, Prisma, TicketAccessAction } from "@prisma/client";
 import { db } from "@/lib/db";
 import { slugify } from "@/lib/slug";
 import { DEFAULT_PAYMENT_CURRENCY, calculateCheckoutAmounts } from "@/lib/payments";
+import { USER_ROLE, type UserRole } from "@/lib/roles";
 import type { CreateEventInput, EventFilters } from "@/features/events/event.schemas";
 
 function getEventSummary(ticketTypes: CreateEventInput["ticketTypes"]) {
@@ -190,7 +191,7 @@ export async function getEventChatBySlugForUser({
   if (!event) return null;
 
   const accessWindowEndsAt = new Date((event.endDate ?? event.date).getTime() + 12 * 60 * 60 * 1000);
-  const hasAccess = role === UserRole.ADMIN || event.ownerId === userId || event.chatParticipants.length > 0;
+  const hasAccess = role === USER_ROLE.ADMIN || event.ownerId === userId || event.chatParticipants.length > 0;
 
   if (!hasAccess) {
     return null;
@@ -309,7 +310,7 @@ export async function getVenueEventById(eventId: string, ownerId: string) {
 }
 
 export async function listScannerEvents(scannerUserId: string, role: UserRole) {
-  if (role === UserRole.ADMIN) {
+  if (role === USER_ROLE.ADMIN) {
     return db.event.findMany({
       where: {
         published: true,
@@ -393,7 +394,7 @@ export async function getScannableEventById({
   });
 
   if (!event) return null;
-  if (role === UserRole.ADMIN) return event;
+  if (role === USER_ROLE.ADMIN) return event;
 
   const assignment = await db.venueDoorStaff.findFirst({
     where: {
@@ -942,7 +943,7 @@ export async function validateVenueTicket({
       throw new Error("No existe ninguna entrada con ese código.");
     }
 
-    if (scanner.role !== UserRole.ADMIN) {
+    if (scanner.role !== USER_ROLE.ADMIN) {
       const assignment = await tx.venueDoorStaff.findFirst({
         where: {
           venueId: ticket.event.ownerId,
@@ -1060,7 +1061,7 @@ export async function inspectVenueTicketByCode({
     throw new Error("No existe ninguna entrada con ese codigo.");
   }
 
-  if (scanner.role !== UserRole.ADMIN) {
+  if (scanner.role !== USER_ROLE.ADMIN) {
     const assignment = await db.venueDoorStaff.findFirst({
       where: {
         venueId: ticket.event.ownerId,
@@ -1132,7 +1133,7 @@ export async function redeemTicketDrink({
       throw new Error("No existe ninguna entrada con ese identificador.");
     }
 
-    if (scanner.role !== UserRole.ADMIN) {
+    if (scanner.role !== USER_ROLE.ADMIN) {
       const assignment = await tx.venueDoorStaff.findFirst({
         where: {
           venueId: ticket.event.ownerId,

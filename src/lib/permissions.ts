@@ -1,4 +1,4 @@
-import type { UserRole } from "@prisma/client";
+import type { UserRole } from "@/lib/roles";
 export { requireAuth, requireRole } from "@/lib/auth";
 
 export function isAdmin(role?: UserRole | null) {

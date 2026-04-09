@@ -1,7 +1,7 @@
 import { randomBytes } from "crypto";
 import { cookies } from "next/headers";
 import { cache } from "react";
-import type { UserRole } from "@prisma/client";
+import type { UserRole } from "@/lib/roles";
 import { prisma } from "@/lib/prisma";
 
 type CookieStore = Awaited<ReturnType<typeof cookies>>;
