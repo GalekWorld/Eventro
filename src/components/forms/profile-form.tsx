@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import type { ActionState } from "@/lib/http";
 import { updateProfileAction } from "@/app/actions/social";
+import { CitySelect } from "@/components/forms/city-select";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { LocationFields } from "@/components/forms/location-fields";
 
@@ -43,7 +44,7 @@ export function ProfileForm({
           />
         </label>
         <input name="name" className="app-input" placeholder="Nombre visible (opcional)" defaultValue={defaults.name ?? ""} />
-        <input name="city" className="app-input" placeholder="Ciudad" defaultValue={defaults.city ?? ""} />
+        <CitySelect name="city" defaultValue={defaults.city} emptyLabel="Selecciona tu ciudad" />
         <div className="grid gap-2">
           <input name="username" className="app-input" placeholder="username" defaultValue={defaults.username ?? ""} />
           <p className="text-xs text-slate-500">

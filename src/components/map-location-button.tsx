@@ -12,7 +12,7 @@ export function MapLocationButton() {
     setError("");
 
     if (!navigator.geolocation) {
-      setError("Tu navegador no permite obtener ubicación.");
+      setError("Tu navegador no permite obtener ubicacion.");
       return;
     }
 
@@ -31,7 +31,19 @@ export function MapLocationButton() {
           });
 
           if (!response.ok) {
-            setError("No se pudo guardar tu ubicación exacta.");
+            const data = (await response.json().catch(() => null)) as { error?: string } | null;
+
+            if (data?.error === "LOCATION_DISABLED") {
+              setError("Activa primero la ubicacion aproximada o exacta en tu perfil para usar el mapa.");
+              return;
+            }
+
+            if (data?.error === "LOCATION_NOT_ALLOWED") {
+              setError("Los perfiles de local usan una ubicacion fija configurada desde el perfil privado.");
+              return;
+            }
+
+            setError("No se pudo guardar tu ubicacion exacta.");
             return;
           }
 
@@ -39,11 +51,11 @@ export function MapLocationButton() {
             router.refresh();
           });
         } catch {
-          setError("No se pudo guardar tu ubicación exacta.");
+          setError("No se pudo guardar tu ubicacion exacta.");
         }
       },
       () => {
-        setError("Activa el permiso de ubicación del navegador para continuar.");
+        setError("Activa el permiso de ubicacion del navegador para continuar.");
       },
       {
         enableHighAccuracy: true,
@@ -56,7 +68,7 @@ export function MapLocationButton() {
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
       <button type="button" onClick={handleClick} className="app-button-primary" disabled={isPending}>
-        {isPending ? "Actualizando..." : "Usar mi ubicación exacta"}
+        {isPending ? "Actualizando..." : "Usar mi ubicacion exacta"}
       </button>
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
     </div>

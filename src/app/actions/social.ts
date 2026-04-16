@@ -1154,7 +1154,7 @@ export async function togglePostLikeAction(formData: FormData) {
           type: NotificationType.POST_LIKE,
           title: "Nuevo like",
           body: `A @${currentUser.username ?? "usuario"} le ha gustado tu publicación.`,
-          link: post.author.username ? `/u/${post.author.username}` : "/dashboard",
+          link: `/posts/${postId}`,
         },
       }).catch(() => null);
 
@@ -1213,7 +1213,7 @@ export async function createPostCommentAction(_prevState: ActionState, formData:
           type: NotificationType.POST_COMMENT,
           title: "Nuevo comentario",
           body: `@${currentUser.username ?? "usuario"} ha comentado tu publicación.`,
-          link: post.author.username ? `/u/${post.author.username}` : "/dashboard",
+          link: `/posts/${postId}`,
         },
       }).catch(() => null);
 
@@ -1304,6 +1304,7 @@ export async function toggleCommentLikeAction(formData: FormData) {
     where: { id: commentId },
     select: {
       id: true,
+      postId: true,
       authorId: true,
       hiddenAt: true,
       author: { select: { username: true } },
@@ -1339,7 +1340,7 @@ export async function toggleCommentLikeAction(formData: FormData) {
           type: NotificationType.COMMENT_LIKE,
           title: "Nuevo like en comentario",
           body: `A @${currentUser.username ?? "usuario"} le ha gustado tu comentario.`,
-          link: comment.author.username ? `/u/${comment.author.username}` : "/dashboard",
+          link: `/posts/${comment.postId}`,
         },
       }).catch(() => null);
 

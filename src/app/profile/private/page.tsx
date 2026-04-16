@@ -286,10 +286,10 @@ export default async function PrivateProfilePage() {
                     const views = storyViewSummaries.get(story.id) ?? { count: 0, viewers: [] };
 
                     return (
-                      <div key={story.id} className="min-w-[110px] max-w-[110px] text-center">
+                      <div key={story.id} className="min-w-[104px] max-w-[104px] text-center sm:min-w-[116px] sm:max-w-[116px]">
                         <Link href={`/stories/${story.id}`} className="block">
                           <div className="app-story-ring rounded-[28px] p-[2px]">
-                            <div className="aspect-[3/4] overflow-hidden rounded-[26px] bg-white">
+                            <div className="aspect-[9/16] overflow-hidden rounded-[26px] bg-white">
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img src={story.imageUrl} alt={story.caption ?? "Historia"} className="h-full w-full object-cover" />
                             </div>
@@ -322,9 +322,9 @@ export default async function PrivateProfilePage() {
             </div>
             <div className="mt-4 flex gap-4 overflow-x-auto pb-1">
               {highlightedStories.map((story) => (
-                <Link key={story.id} href={`/stories/${story.id}`} className="block min-w-[120px] max-w-[120px]">
+                <Link key={story.id} href={`/stories/${story.id}`} className="block min-w-[108px] max-w-[108px] sm:min-w-[124px] sm:max-w-[124px]">
                   <div className="overflow-hidden rounded-[28px] border border-neutral-200 bg-neutral-50">
-                    <div className="aspect-[3/4] overflow-hidden">
+                    <div className="aspect-[9/16] overflow-hidden">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={story.imageUrl} alt={story.caption ?? "Historia destacada"} className="h-full w-full object-cover" />
                     </div>
@@ -436,7 +436,7 @@ export default async function PrivateProfilePage() {
             const parsedPost = parsePostContent(post.content);
 
             return (
-              <article key={post.id} className="overflow-hidden bg-neutral-100">
+              <Link key={post.id} href={`/posts/${post.id}`} className="block overflow-hidden rounded-[18px] bg-neutral-100 transition hover:opacity-95">
                 {post.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={post.imageUrl} alt={parsedPost.content} className="aspect-square w-full object-cover" />
@@ -446,7 +446,7 @@ export default async function PrivateProfilePage() {
                     {parsedPost.location ? <span className="mt-2 text-xs font-medium text-slate-400">{parsedPost.location}</span> : null}
                   </div>
                 )}
-              </article>
+              </Link>
             );
           })}
 

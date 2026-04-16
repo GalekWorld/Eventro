@@ -69,8 +69,8 @@ export function StoryViewer({ currentStoryId, stories, canDeleteCurrent, closeHr
   }
 
   return (
-    <div className="mx-auto flex min-h-[100svh] w-full max-w-[460px] items-center justify-center px-0 sm:px-4">
-      <section className="relative h-[100svh] w-full overflow-hidden bg-black sm:h-auto sm:rounded-[28px] sm:shadow-2xl">
+    <div className="mx-auto flex min-h-[100svh] w-full max-w-[440px] items-center justify-center px-0 sm:px-4">
+      <section className="relative h-[100svh] w-full overflow-hidden bg-black sm:h-auto sm:max-h-[92svh] sm:aspect-[9/16] sm:rounded-[28px] sm:shadow-2xl">
         <div className="absolute inset-x-0 top-0 z-20 p-3 sm:p-4">
           <div className="flex gap-1.5">
             {stories.map((story, index) => {

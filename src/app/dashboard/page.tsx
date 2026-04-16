@@ -334,9 +334,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
         <section className="app-card overflow-x-auto p-2.5 sm:p-3">
           <div className="flex gap-3">
             {stories.map((story) => (
-              <Link key={story.id} href={`/stories/${story.id}`} className="min-w-[82px] max-w-[82px] text-center">
+              <Link key={story.id} href={`/stories/${story.id}`} className="min-w-[78px] max-w-[78px] text-center sm:min-w-[86px] sm:max-w-[86px]">
                 <div className="app-story-ring rounded-[24px] p-[2px]">
-                  <div className="relative aspect-[3/4] overflow-hidden rounded-[22px] bg-white text-lg font-semibold text-slate-900">
+                  <div className="relative aspect-[9/16] overflow-hidden rounded-[22px] bg-white text-lg font-semibold text-slate-900">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={story.imageUrl} alt={story.caption ?? "story"} className="h-full w-full object-cover" />
                     {isPubliclyVerified(story.author) ? (

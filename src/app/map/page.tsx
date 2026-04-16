@@ -10,6 +10,7 @@ import { getBlockedUserIds } from "@/lib/privacy";
 import { getMutualFriendIds } from "@/lib/social-graph";
 import { getEventPath } from "@/lib/event-path";
 import { MapLocationButton } from "@/components/map-location-button";
+import { CitySelect } from "@/components/forms/city-select";
 
 type RangeFilter = "today" | "weekend" | "7days";
 
@@ -17,6 +18,11 @@ type SearchParams = Promise<{
   range?: string;
   city?: string;
 }>;
+
+const DEFAULT_MAP_CENTER = {
+  latitude: 40.4168,
+  longitude: -3.7038,
+};
 
 function startOfDay(date: Date) {
   const next = new Date(date);
@@ -63,8 +69,8 @@ function getRangeWindow(range: RangeFilter, now: Date) {
   return {
     start: now,
     end: endOfDay(addDays(now, 7)),
-    helper: "Locales con eventos publicados durante la próxima semana.",
-    chip: "Activos 7 días",
+    helper: "Locales con eventos publicados durante la proxima semana.",
+    chip: "Activos 7 dias",
   };
 }
 
@@ -90,6 +96,13 @@ function normalizeRange(value?: string): RangeFilter {
   }
 
   return "7days";
+}
+
+function compareNullableDistance(a: number | null, b: number | null) {
+  if (a == null && b == null) return 0;
+  if (a == null) return 1;
+  if (b == null) return -1;
+  return a - b;
 }
 
 export default async function MapPage({ searchParams }: { searchParams: SearchParams }) {
@@ -222,40 +235,10 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
         }
       : null;
 
-  if (!currentPosition) {
-    return (
-      <div className="mx-auto max-w-[935px] space-y-4">
-        <section className="app-card p-4 sm:p-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h1 className="app-screen-title">Mapa</h1>
-              <p className="mt-2 app-screen-subtitle">
-                {isVenueUser
-                  ? "Configura la ubicación fija de tu local para verlo en el mapa y revisar qué hay cerca."
-                  : "Guarda tu ubicación exacta para ver a tus amigos y los locales con eventos cerca de ti."}
-              </p>
-            </div>
-            <Link href="/profile/private" className="app-button-secondary">
-              Ajustar ubicación
-            </Link>
-          </div>
-          {!isVenueUser ? (
-            <div className="mt-4 space-y-2">
-              <MapLocationButton />
-              <p className="text-sm text-slate-500">
-                Si el navegador la bloqueó antes, vuelve a permitir la ubicación para esta web y pulsa el botón.
-              </p>
-            </div>
-          ) : null}
-        </section>
-      </div>
-    );
-  }
-
   const nearbyVenues = venues
     .map((venue) => {
       const nextEvent = venue.user.events[0] ?? null;
-      const distance = getDistanceInKm(currentPosition, { latitude: venue.latitude!, longitude: venue.longitude! });
+      const distance = currentPosition ? getDistanceInKm(currentPosition, { latitude: venue.latitude!, longitude: venue.longitude! }) : null;
 
       return {
         ...venue,
@@ -265,15 +248,23 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
       };
     })
     .filter((venue) => venue.user.id !== currentUser.id)
-    .sort((a, b) => a.distance - b.distance)
+    .sort((a, b) => {
+      const byDistance = compareNullableDistance(a.distance, b.distance);
+      if (byDistance !== 0) return byDistance;
+      return a.businessName.localeCompare(b.businessName, "es");
+    })
     .slice(0, 30);
 
   const nearbyFriends = friends
     .map((friend) => ({
       ...friend,
-      distance: getDistanceInKm(currentPosition, { latitude: friend.latitude!, longitude: friend.longitude! }),
+      distance: currentPosition ? getDistanceInKm(currentPosition, { latitude: friend.latitude!, longitude: friend.longitude! }) : null,
     }))
-    .sort((a, b) => a.distance - b.distance)
+    .sort((a, b) => {
+      const byDistance = compareNullableDistance(a.distance, b.distance);
+      if (byDistance !== 0) return byDistance;
+      return (a.username ?? a.name ?? "").localeCompare(b.username ?? b.name ?? "", "es");
+    })
     .slice(0, 20);
 
   const ownVenuePoint =
@@ -281,7 +272,7 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
       ? {
           id: `venue-self-${currentUser.id}`,
           label: ownVenueRequest.businessName ?? currentUser.name ?? "Tu local",
-          subtitle: `${ownVenueRequest.city ?? currentUser.city ?? "Tu local"} · ubicación fija del local`,
+          subtitle: `${ownVenueRequest.city ?? currentUser.city ?? "Tu local"} · ubicacion fija del local`,
           latitude: ownVenueRequest.latitude,
           longitude: ownVenueRequest.longitude,
           type: "venue" as const,
@@ -307,12 +298,12 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
       : null;
 
   const points = [
-    ...(!isVenueUser
+    ...(!isVenueUser && currentPosition
       ? [
           {
             id: "me",
-            label: "Tú",
-            subtitle: "Tu ubicación actual",
+            label: "Tu",
+            subtitle: "Tu ubicacion actual",
             latitude: currentPosition.latitude,
             longitude: currentPosition.longitude,
             type: "me" as const,
@@ -330,10 +321,7 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
       return {
         id: `friend-${friend.id}`,
         label: `@${friend.username ?? "usuario"}`,
-        subtitle:
-          friend.locationSharingMode === "APPROXIMATE"
-            ? `${friend.city ?? "Amigo"} · ubicación aproximada`
-            : friend.city ?? "Amigo",
+        subtitle: friend.locationSharingMode === "APPROXIMATE" ? `${friend.city ?? "Amigo"} · ubicacion aproximada` : friend.city ?? "Amigo",
         latitude,
         longitude,
         type: "friend" as const,
@@ -351,7 +339,7 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
       return {
         id: `venue-${venue.id}`,
         label: venue.businessName,
-        subtitle: `${venue.city} · ${venue.distance.toFixed(1)} km`,
+        subtitle: venue.distance == null ? venue.city : `${venue.city} · ${venue.distance.toFixed(1)} km`,
         latitude: venue.latitude!,
         longitude: venue.longitude!,
         type: "venue" as const,
@@ -360,7 +348,7 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
         imageUrl: nextEvent?.imageUrl ?? venue.user.avatarUrl ?? null,
         fallbackText: venue.businessName,
         highlightLabel: `${venue.user.events.length} evento${venue.user.events.length === 1 ? "" : "s"} · ${rangeWindow.chip.toLowerCase()}`,
-        detailTitle: nextEvent?.title ?? "Próximo evento",
+        detailTitle: nextEvent?.title ?? "Proximo evento",
         detailDate: nextEvent ? formatEventDate(nextEvent.date) : undefined,
         detailPrice: nextEvent ? `${nextEventPrice} · ${nextEvent.location}` : undefined,
         ctaLabel: nextEvent ? "Ver entradas" : "Ver local",
@@ -380,10 +368,19 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
     }),
   ];
 
+  const mapCenter =
+    currentPosition ??
+    (points[0]
+      ? {
+          latitude: points[0].latitude,
+          longitude: points[0].longitude,
+        }
+      : DEFAULT_MAP_CENTER);
+
   const rangeOptions: { value: RangeFilter; label: string; helper: string }[] = [
     { value: "today", label: "Hoy", helper: "Eventos que arrancan hoy" },
     { value: "weekend", label: "Este finde", helper: "Viernes a domingo" },
-    { value: "7days", label: "7 días", helper: "Próxima semana" },
+    { value: "7days", label: "7 dias", helper: "Proxima semana" },
   ];
 
   return (
@@ -398,13 +395,21 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
               <p className="mt-2 app-screen-subtitle">{rangeWindow.helper}</p>
             </div>
             <Link href="/profile/private" className="app-button-secondary">
-              Ajustar ubicación
+              Ajustar ubicacion
             </Link>
           </div>
 
           {!isVenueUser ? (
             <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-3">
               <MapLocationButton />
+            </div>
+          ) : null}
+
+          {!currentPosition ? (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              {isVenueUser
+                ? "Aun no hay una ubicacion fija guardada para tu local. Puedes seguir filtrando el mapa y ajustarla despues desde el perfil privado."
+                : "Todavia no has guardado una ubicacion exacta valida para centrar el mapa en ti. Aun asi puedes usar filtros y ver amigos o locales visibles."}
             </div>
           ) : null}
 
@@ -426,7 +431,7 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
           </div>
 
           <form className="grid gap-3 sm:grid-cols-[1fr_auto]">
-            <input name="city" defaultValue={cityFilter} placeholder="Filtrar por ciudad" className="app-input" />
+            <CitySelect name="city" defaultValue={cityFilter} emptyLabel="Todas las ciudades" />
             <input type="hidden" name="range" value={range} />
             <button type="submit" className="app-button-primary">
               Aplicar filtro
@@ -435,7 +440,7 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
         </div>
       </section>
 
-      <MapView center={currentPosition} points={points} />
+      <MapView center={mapCenter} points={points} />
 
       <section className="grid gap-3 md:grid-cols-2">
         <div className="app-card p-4 sm:p-5">
@@ -458,7 +463,7 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-slate-950">{venue.businessName}</p>
                       <p className="mt-1 text-xs text-slate-500">
-                        {venue.city} · {venue.distance.toFixed(1)} km
+                        {venue.distance == null ? venue.city : `${venue.city} · ${venue.distance.toFixed(1)} km`}
                       </p>
                     </div>
                     <span className="app-pill whitespace-nowrap">{venue.user.events.length} planes</span>
@@ -482,7 +487,7 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
                       Ver local
                     </Link>
                     <Link href={venue.directionsUrl} target="_blank" rel="noreferrer" className="app-button-secondary">
-                      Cómo llegar
+                      Como llegar
                     </Link>
                   </div>
                 </div>
@@ -497,7 +502,7 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
           <div className="flex items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold text-slate-950">Amigos cerca</h2>
-              <p className="mt-1 text-sm text-slate-500">Solo se muestran si comparten ubicación contigo.</p>
+              <p className="mt-1 text-sm text-slate-500">Solo se muestran si comparten ubicacion contigo.</p>
             </div>
             <span className="app-pill">{nearbyFriends.length}</span>
           </div>
@@ -514,10 +519,10 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
                     <p className="truncate text-sm font-semibold text-slate-950">@{friend.username ?? "usuario"}</p>
                     <p className="mt-1 text-xs text-slate-500">{friend.name ?? "Amigo"}</p>
                   </div>
-                  <span className="app-pill whitespace-nowrap">{friend.distance.toFixed(1)} km</span>
+                  {friend.distance != null ? <span className="app-pill whitespace-nowrap">{friend.distance.toFixed(1)} km</span> : null}
                 </div>
                 <p className="mt-3 text-xs text-slate-500">
-                  {friend.locationSharingMode === "APPROXIMATE" ? `${friend.city ?? "Sin ciudad"} · ubicación aproximada` : friend.city ?? "Sin ciudad"}
+                  {friend.locationSharingMode === "APPROXIMATE" ? `${friend.city ?? "Sin ciudad"} · ubicacion aproximada` : friend.city ?? "Sin ciudad"}
                 </p>
               </Link>
             ))}
