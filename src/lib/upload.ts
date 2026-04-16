@@ -15,6 +15,14 @@ function getExtension(type: string) {
   return ".jpg";
 }
 
+function buildDataUrl(type: string, bytes: Buffer) {
+  return `data:${type};base64,${bytes.toString("base64")}`;
+}
+
+function shouldInlineUpload() {
+  return process.env.VERCEL === "1" || process.env.EVENTRO_INLINE_UPLOADS === "1";
+}
+
 function sanitizeFolder(folder: string) {
   const normalized = folder.trim().toLowerCase().replaceAll("\\", "/");
 
@@ -229,8 +237,22 @@ export async function savePublicImage(file: File, folder: string) {
   const absoluteDir = path.join(process.cwd(), "public", relativeDir);
   const absolutePath = path.join(absoluteDir, fileName);
 
-  await mkdir(absoluteDir, { recursive: true });
-  await writeFile(absolutePath, bytes);
+  if (shouldInlineUpload()) {
+    return buildDataUrl(file.type, bytes);
+  }
+
+  try {
+    await mkdir(absoluteDir, { recursive: true });
+    await writeFile(absolutePath, bytes);
+  } catch (error) {
+    const errorCode = typeof error === "object" && error && "code" in error ? String(error.code) : null;
+
+    if (errorCode === "EROFS") {
+      return buildDataUrl(file.type, bytes);
+    }
+
+    throw error;
+  }
 
   return `/${relativeDir.replaceAll("\\", "/")}/${fileName}`;
 }
