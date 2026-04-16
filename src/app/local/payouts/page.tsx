@@ -63,7 +63,7 @@ export default async function LocalPayoutsPage() {
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Resumen de payouts</p>
             <h2 className="mt-2 text-xl font-semibold text-slate-950">Cobro confirmado, fee y neto</h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
-              La plataforma retiene un 0,04% del valor de la entrada y suma un 0,03% extra al comprador por gastos de
+              La plataforma retiene un 4% del valor de la entrada y suma un 3% extra al comprador por gastos de
               gestión.
             </p>
           </div>
@@ -90,16 +90,12 @@ export default async function LocalPayoutsPage() {
           <div className="rounded-[28px] border border-neutral-200 bg-neutral-50 p-4">
             <CreditCard className="h-5 w-5 text-slate-500" />
             <p className="mt-4 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Comisión plataforma</p>
-            <p className="mt-2 text-2xl font-semibold text-slate-950">
-              {formatPrice(report.summary.revenueShare) ?? "0 EUR"}
-            </p>
+            <p className="mt-2 text-2xl font-semibold text-slate-950">{formatPrice(report.summary.revenueShare) ?? "0 EUR"}</p>
           </div>
           <div className="rounded-[28px] border border-neutral-200 bg-neutral-50 p-4">
             <CreditCard className="h-5 w-5 text-slate-500" />
             <p className="mt-4 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Gestión al comprador</p>
-            <p className="mt-2 text-2xl font-semibold text-slate-950">
-              {formatPrice(report.summary.managementFees) ?? "0 EUR"}
-            </p>
+            <p className="mt-2 text-2xl font-semibold text-slate-950">{formatPrice(report.summary.managementFees) ?? "0 EUR"}</p>
           </div>
           <div className="rounded-[28px] border border-neutral-200 bg-neutral-50 p-4">
             <CheckCircle2 className="h-5 w-5 text-slate-500" />
@@ -209,9 +205,7 @@ export default async function LocalPayoutsPage() {
                     <p className="mt-1 truncate text-xs text-slate-400">{formatEventDate(payout.createdAt)}</p>
                   </div>
                   <span className="text-slate-950">{formatPrice(payout.amount / 100) ?? "0 EUR"}</span>
-                  <span className="text-slate-700">
-                    {payout.arrivalDate ? formatEventDate(payout.arrivalDate) : "Pendiente"}
-                  </span>
+                  <span className="text-slate-700">{payout.arrivalDate ? formatEventDate(payout.arrivalDate) : "Pendiente"}</span>
                   <span className="text-slate-700">{payout.status}</span>
                   <div className="min-w-0 text-xs text-slate-500">
                     {payout.failureMessage ? <p className="truncate text-red-600">{payout.failureMessage}</p> : <p>-</p>}

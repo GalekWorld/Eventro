@@ -9,8 +9,16 @@ import { getVerificationTone, isPubliclyVerified } from "@/lib/user-display";
 import { ReportForm } from "@/components/forms/report-form";
 import { isBlockedBetween } from "@/lib/privacy";
 import { purgeExpiredStories } from "@/lib/stories";
+import { getEventPath } from "@/lib/event-path";
+import { formatEventDate, formatPrice } from "@/lib/utils";
+import { getPrimaryTicketSummary } from "@/lib/event-pricing";
+import { parsePostContent } from "@/lib/post-content";
+import { purgeTemporaryPosts } from "@/lib/post-maintenance";
+import { parseVipSpace } from "@/lib/vip-space";
+import { listHighlightedStoryIdsForUser } from "@/lib/story-metadata";
 
 export default async function PublicProfilePage({ params }: { params: Promise<{ username: string }> }) {
+  await purgeTemporaryPosts();
   await purgeExpiredStories();
   const { username } = await params;
   const currentUser = await getCurrentUser();
@@ -31,6 +39,22 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
         },
         orderBy: { createdAt: "desc" },
       },
+      events: {
+        where: { published: true },
+        orderBy: { date: "desc" },
+        take: 6,
+        include: {
+          ticketTypes: {
+            orderBy: { sortOrder: "asc" },
+            select: {
+              name: true,
+              description: true,
+              price: true,
+              isVisible: true,
+            },
+          },
+        },
+      },
       followers: currentUser ? { where: { followerId: currentUser.id } } : true,
       following: currentUser ? { where: { followingId: currentUser.id } } : false,
       _count: {
@@ -45,6 +69,16 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
 
   if (!profile) notFound();
   if (currentUser && (await isBlockedBetween(currentUser.id, profile.id))) notFound();
+
+  const highlightedStoryIds = await listHighlightedStoryIdsForUser(profile.id);
+  const highlightedStories = highlightedStoryIds.length
+    ? await db.story.findMany({
+        where: {
+          id: { in: highlightedStoryIds },
+        },
+        orderBy: { createdAt: "desc" },
+      })
+    : [];
 
   const isOwnProfile = currentUser?.id === profile.id;
   const isFollowing = !isOwnProfile && Array.isArray(profile.followers) && profile.followers.length > 0;
@@ -119,7 +153,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
             </div>
 
             <div className="mt-4 space-y-2">
-              <p className="font-semibold text-slate-950">{profile.name ?? "Usuario"}</p>
+              {profile.name ? <p className="font-semibold text-slate-950">{profile.name}</p> : null}
               <p className="text-sm leading-6 text-slate-600">{profile.bio ?? "Todavía no ha añadido una biografía."}</p>
               {profile.city ? <p className="text-sm text-slate-500">{profile.city}</p> : null}
             </div>
@@ -133,14 +167,73 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
         <section className="app-card overflow-x-auto p-4">
           <div className="flex gap-4">
             {profile.stories.map((story) => (
-              <Link key={story.id} href={`/stories/${story.id}`} className="min-w-[90px] text-center">
-                <div className="app-story-ring mx-auto rounded-full p-[2px]">
-                  <div className="h-[82px] w-[82px] overflow-hidden rounded-full bg-white">
+              <Link key={story.id} href={`/stories/${story.id}`} className="min-w-[110px] max-w-[110px] text-center">
+                <div className="app-story-ring rounded-[28px] p-[2px]">
+                  <div className="aspect-[3/4] overflow-hidden rounded-[26px] bg-white">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={story.imageUrl} alt={story.caption ?? "story"} className="h-full w-full object-cover" />
                   </div>
                 </div>
-                <p className="mt-2 truncate text-xs text-slate-500">{story.caption ?? "Historia"}</p>
+                <p className="mt-2 line-clamp-2 text-xs text-slate-500">{story.caption ?? "Historia"}</p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {highlightedStories.length > 0 ? (
+        <section className="app-card overflow-x-auto p-4">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h2 className="text-base font-semibold text-slate-950">Historias destacadas</h2>
+            <span className="app-pill">{highlightedStories.length}</span>
+          </div>
+          <div className="flex gap-4">
+            {highlightedStories.map((story) => (
+              <Link key={story.id} href={`/stories/${story.id}`} className="block min-w-[120px] max-w-[120px]">
+                <div className="overflow-hidden rounded-[28px] border border-neutral-200 bg-neutral-50">
+                  <div className="aspect-[3/4] overflow-hidden">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={story.imageUrl} alt={story.caption ?? "Historia destacada"} className="h-full w-full object-cover" />
+                  </div>
+                  <div className="p-3">
+                    <p className="line-clamp-2 text-xs text-slate-600">{story.caption ?? "Historia destacada"}</p>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {(profile.role === "VENUE" || profile.role === "VENUE_PENDING") && profile.events.length > 0 ? (
+        <section className="app-card p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-950">Anuncios del local</h2>
+              <p className="mt-1 text-sm text-slate-500">Eventos y planes publicados en este perfil.</p>
+            </div>
+            <span className="app-pill">{profile.events.length}</span>
+          </div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {profile.events.map((event) => (
+              <Link key={event.id} href={getEventPath(event)} className="rounded-3xl border border-neutral-200 bg-neutral-50 p-4 transition hover:bg-neutral-100">
+                {(() => {
+                  const pricing = getPrimaryTicketSummary(event);
+                  const vipSpace = parseVipSpace(event.reservationInfo);
+                  return (
+                    <>
+                      <p className="line-clamp-1 text-base font-semibold text-slate-950">{event.title}</p>
+                      {pricing.message ? <p className="mt-1 line-clamp-2 text-sm text-slate-500">{pricing.message}</p> : null}
+                      {vipSpace?.adultsOnly ? <p className="mt-2 text-xs font-medium uppercase tracking-[0.16em] text-rose-600">+18</p> : null}
+                      <p className="mt-1 text-sm text-slate-500">{formatEventDate(event.date)}</p>
+                      <p className="mt-1 text-sm text-slate-500">{event.city}</p>
+                      <p className="mt-3 text-sm font-medium text-slate-700">
+                        {pricing.price == null ? "Gratis" : `Desde ${formatPrice(pricing.price) ?? "Gratis"}`}
+                      </p>
+                    </>
+                  );
+                })()}
               </Link>
             ))}
           </div>
@@ -148,18 +241,23 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
       ) : null}
 
       <section className="grid grid-cols-3 gap-1 sm:gap-3">
-        {profile.posts.map((post) => (
-          <article key={post.id} className="overflow-hidden bg-neutral-100">
-            {post.imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={post.imageUrl} alt={post.content} className="aspect-square w-full object-cover" />
-            ) : (
-              <div className="flex aspect-square items-center justify-center p-4 text-center text-sm text-slate-500">
-                {post.content}
-              </div>
-            )}
-          </article>
-        ))}
+        {profile.posts.map((post) => {
+          const parsedPost = parsePostContent(post.content);
+
+          return (
+            <article key={post.id} className="overflow-hidden bg-neutral-100">
+              {post.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={post.imageUrl} alt={parsedPost.content} className="aspect-square w-full object-cover" />
+              ) : (
+                <div className="flex aspect-square flex-col items-center justify-center p-4 text-center text-sm text-slate-500">
+                  <span>{parsedPost.content}</span>
+                  {parsedPost.location ? <span className="mt-2 text-xs font-medium text-slate-400">{parsedPost.location}</span> : null}
+                </div>
+              )}
+            </article>
+          );
+        })}
 
         {profile.posts.length === 0 ? (
           <div className="col-span-3 app-card p-5 text-center text-sm text-slate-500">Este usuario aún no ha publicado nada.</div>

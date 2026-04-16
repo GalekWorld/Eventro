@@ -94,7 +94,7 @@ export async function POST(req: Request) {
     if (accountType === "USER") {
       const user = await prisma.user.create({
         data: {
-          name,
+          name: name || null,
           username,
           email,
           passwordHash,
@@ -126,7 +126,7 @@ export async function POST(req: Request) {
 
     const user = await prisma.user.create({
       data: {
-        name,
+        name: name || null,
         username,
         email,
         passwordHash,

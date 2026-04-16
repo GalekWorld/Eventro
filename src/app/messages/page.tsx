@@ -126,7 +126,7 @@ export default async function MessagesPage({ searchParams }: { searchParams: Sea
                     <p className="truncate text-sm font-semibold text-slate-950 sm:text-[15px]">@{otherUser.username ?? "usuario"}</p>
                     {isPubliclyVerified(otherUser) ? <VerifiedBadge tone={getVerificationTone(otherUser)} /> : null}
                   </div>
-                  <p className="truncate text-sm text-slate-500">{otherUser.name ?? "Usuario"}</p>
+                  {otherUser.name ? <p className="truncate text-sm text-slate-500">{otherUser.name}</p> : null}
                   <p className={`mt-1 truncate text-sm ${unreadCount > 0 ? "font-semibold text-slate-700" : "text-slate-400"}`}>
                     {lastMessage?.body ?? "Todavía no hay mensajes."}
                   </p>

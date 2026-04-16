@@ -14,12 +14,21 @@ import { StoryDeleteButton } from "@/components/story-delete-button";
 import { PasswordResetRequestForm } from "@/components/forms/password-reset-request-form";
 import { isEmailDeliveryConfigured } from "@/lib/email";
 import { LiveLocationSync } from "@/components/live-location-sync";
+import { getEventPath } from "@/lib/event-path";
+import { formatEventDate, formatPrice } from "@/lib/utils";
+import { getPrimaryTicketSummary } from "@/lib/event-pricing";
+import { parsePostContent } from "@/lib/post-content";
+import { purgeTemporaryPosts } from "@/lib/post-maintenance";
+import { parseVipSpace } from "@/lib/vip-space";
+import { getStoryViewSummaries, listHighlightedStoryIdsForUser } from "@/lib/story-metadata";
 
 export default async function PrivateProfilePage() {
+  await purgeTemporaryPosts();
   await purgeExpiredStories();
   const user = await requireAuth();
   const now = new Date();
   const blockedUserIds = await getBlockedUserIds(user.id);
+  const isVenueProfile = user.role === "VENUE" || user.role === "VENUE_PENDING";
   const canScan =
     user.role === "ADMIN" ||
     Boolean(
@@ -43,6 +52,22 @@ export default async function PrivateProfilePage() {
           },
         },
         orderBy: { createdAt: "desc" },
+      },
+      events: {
+        where: { published: true },
+        orderBy: { date: "desc" },
+        take: 6,
+        include: {
+          ticketTypes: {
+            orderBy: { sortOrder: "asc" },
+            select: {
+              name: true,
+              description: true,
+              price: true,
+              isVisible: true,
+            },
+          },
+        },
       },
       followers: {
         take: 12,
@@ -75,6 +100,17 @@ export default async function PrivateProfilePage() {
 
   if (!profile) return null;
 
+  const highlightedStoryIds = await listHighlightedStoryIdsForUser(user.id);
+  const highlightedStories = highlightedStoryIds.length
+    ? await db.story.findMany({
+        where: {
+          id: { in: highlightedStoryIds },
+        },
+        orderBy: { createdAt: "desc" },
+      })
+    : [];
+  const storyViewSummaries = await getStoryViewSummaries(profile.stories.map((story) => story.id));
+
   const emailConfigured = isEmailDeliveryConfigured();
   const usernameChangesUsed = await db.usernameChange.count({
     where: {
@@ -84,7 +120,7 @@ export default async function PrivateProfilePage() {
       },
     },
   });
-  const usernameChangesRemaining = Math.max(0, 3 - usernameChangesUsed);
+  const usernameChangesRemaining = profile.role === "ADMIN" ? Number.POSITIVE_INFINITY : Math.max(0, 3 - usernameChangesUsed);
   const quickLinks = [{ href: "/tickets", label: "Mis entradas", icon: QrCode }];
 
   if (profile.role === "VENUE") {
@@ -101,7 +137,7 @@ export default async function PrivateProfilePage() {
 
   return (
     <div className="mx-auto max-w-[935px] space-y-4">
-      {profile.role !== "VENUE" ? <LiveLocationSync enabled={profile.locationSharingMode !== "GHOST"} /> : null}
+      {!isVenueProfile ? <LiveLocationSync enabled={profile.locationSharingMode !== "GHOST"} /> : null}
 
       <section className="app-card p-5 sm:p-7">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
@@ -137,7 +173,7 @@ export default async function PrivateProfilePage() {
             </div>
 
             <div className="mt-4 space-y-2">
-              <p className="font-semibold text-slate-950">{profile.name ?? "Sin nombre visible"}</p>
+              {profile.name ? <p className="font-semibold text-slate-950">{profile.name}</p> : null}
               <p className="text-sm leading-6 text-slate-600">{profile.bio ?? "Todavía no has añadido una biografía."}</p>
               <div className="flex flex-wrap gap-2">
                 <span className="app-pill">Rol: {profile.role}</span>
@@ -211,14 +247,14 @@ export default async function PrivateProfilePage() {
                 username: profile.username,
                 bio: profile.bio,
                 city: profile.city,
-                latitude: profile.latitude,
-                longitude: profile.longitude,
+                latitude: isVenueProfile ? profile.venueRequest?.latitude : profile.latitude,
+                longitude: isVenueProfile ? profile.venueRequest?.longitude : profile.longitude,
                 locationAddress: profile.venueRequest?.address,
                 shareLocation: profile.shareLocation,
                 locationSharingMode: profile.locationSharingMode,
               }}
               usernameChangesRemaining={usernameChangesRemaining}
-              isVenue={profile.role === "VENUE"}
+              isVenue={isVenueProfile}
             />
           </div>
         </details>
@@ -246,22 +282,27 @@ export default async function PrivateProfilePage() {
 
               {profile.stories.length > 0 ? (
                 <div className="mt-4 flex gap-4 overflow-x-auto pb-1">
-                  {profile.stories.map((story) => (
-                    <div key={story.id} className="min-w-[96px] text-center">
-                      <Link href={`/stories/${story.id}`} className="block">
-                        <div className="app-story-ring mx-auto rounded-full p-[2px]">
-                          <div className="h-[84px] w-[84px] overflow-hidden rounded-full bg-white">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={story.imageUrl} alt={story.caption ?? "Historia"} className="h-full w-full object-cover" />
+                  {profile.stories.map((story) => {
+                    const views = storyViewSummaries.get(story.id) ?? { count: 0, viewers: [] };
+
+                    return (
+                      <div key={story.id} className="min-w-[110px] max-w-[110px] text-center">
+                        <Link href={`/stories/${story.id}`} className="block">
+                          <div className="app-story-ring rounded-[28px] p-[2px]">
+                            <div className="aspect-[3/4] overflow-hidden rounded-[26px] bg-white">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={story.imageUrl} alt={story.caption ?? "Historia"} className="h-full w-full object-cover" />
+                            </div>
                           </div>
+                        </Link>
+                        <p className="mt-2 line-clamp-2 text-xs text-slate-500">{story.caption ?? "Historia"}</p>
+                        <p className="mt-1 text-[11px] font-medium text-slate-400">{views.count} vista{views.count === 1 ? "" : "s"}</p>
+                        <div className="mt-2 flex justify-center">
+                          <StoryDeleteButton storyId={story.id} isHighlighted={highlightedStoryIds.includes(story.id)} viewCount={views.count} viewers={views.viewers} />
                         </div>
-                      </Link>
-                      <p className="mt-2 truncate text-xs text-slate-500">{story.caption ?? "Historia"}</p>
-                      <div className="mt-2 flex justify-center">
-                        <StoryDeleteButton storyId={story.id} />
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <p className="mt-4 text-sm text-slate-500">No tienes historias activas ahora mismo.</p>
@@ -269,6 +310,33 @@ export default async function PrivateProfilePage() {
             </div>
           </div>
         </details>
+
+        {highlightedStories.length > 0 ? (
+          <section className="app-card border-t border-neutral-200 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-base font-semibold text-slate-950">Historias destacadas</p>
+                <p className="mt-1 text-sm text-slate-500">Se quedan visibles en tu perfil aunque pasen las 24 horas.</p>
+              </div>
+              <span className="app-pill">{highlightedStories.length}</span>
+            </div>
+            <div className="mt-4 flex gap-4 overflow-x-auto pb-1">
+              {highlightedStories.map((story) => (
+                <Link key={story.id} href={`/stories/${story.id}`} className="block min-w-[120px] max-w-[120px]">
+                  <div className="overflow-hidden rounded-[28px] border border-neutral-200 bg-neutral-50">
+                    <div className="aspect-[3/4] overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={story.imageUrl} alt={story.caption ?? "Historia destacada"} className="h-full w-full object-cover" />
+                    </div>
+                    <div className="p-3">
+                      <p className="line-clamp-2 text-xs text-slate-600">{story.caption ?? "Historia destacada"}</p>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         <details className="app-card overflow-hidden">
           <summary className="cursor-pointer list-none px-5 py-4">
@@ -314,8 +382,43 @@ export default async function PrivateProfilePage() {
                     <p className="truncate text-sm font-semibold text-slate-950">@{follower.username ?? "usuario"}</p>
                     {isPubliclyVerified(follower) ? <VerifiedBadge tone={getVerificationTone(follower)} /> : null}
                   </div>
-                  <p className="truncate text-xs text-slate-500">{follower.name ?? "Usuario"}</p>
+                  {follower.name ? <p className="truncate text-xs text-slate-500">{follower.name}</p> : null}
                 </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {isVenueProfile && profile.events.length > 0 ? (
+        <section className="app-card p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-950">Anuncios del local</h2>
+              <p className="mt-1 text-sm text-slate-500">Estos eventos publicados también se muestran en tu perfil público.</p>
+            </div>
+            <span className="app-pill">{profile.events.length}</span>
+          </div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {profile.events.map((event) => (
+              <Link key={event.id} href={getEventPath(event)} className="rounded-3xl border border-neutral-200 bg-neutral-50 p-4 transition hover:bg-neutral-100">
+                {(() => {
+                  const pricing = getPrimaryTicketSummary(event);
+                  const vipSpace = parseVipSpace(event.reservationInfo);
+                  return (
+                    <>
+                      <p className="line-clamp-1 text-base font-semibold text-slate-950">{event.title}</p>
+                      {pricing.message ? <p className="mt-1 line-clamp-2 text-sm text-slate-500">{pricing.message}</p> : null}
+                      {vipSpace?.adultsOnly ? <p className="mt-2 text-xs font-medium uppercase tracking-[0.16em] text-rose-600">+18</p> : null}
+                      <p className="mt-1 text-sm text-slate-500">{formatEventDate(event.date)}</p>
+                      <p className="mt-1 text-sm text-slate-500">{event.city}</p>
+                      <p className="mt-3 text-sm font-medium text-slate-700">
+                        {pricing.price == null ? "Gratis" : `Desde ${formatPrice(pricing.price) ?? "Gratis"}`}
+                      </p>
+                    </>
+                  );
+                })()}
               </Link>
             ))}
           </div>
@@ -329,18 +432,23 @@ export default async function PrivateProfilePage() {
         </div>
 
         <div className="grid grid-cols-3 gap-1 sm:gap-3">
-          {profile.posts.map((post) => (
-            <article key={post.id} className="overflow-hidden bg-neutral-100">
-              {post.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={post.imageUrl} alt={post.content} className="aspect-square w-full object-cover" />
-              ) : (
-                <div className="flex aspect-square items-center justify-center p-4 text-center text-sm text-slate-500">
-                  {post.content}
-                </div>
-              )}
-            </article>
-          ))}
+          {profile.posts.map((post) => {
+            const parsedPost = parsePostContent(post.content);
+
+            return (
+              <article key={post.id} className="overflow-hidden bg-neutral-100">
+                {post.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={post.imageUrl} alt={parsedPost.content} className="aspect-square w-full object-cover" />
+                ) : (
+                  <div className="flex aspect-square flex-col items-center justify-center p-4 text-center text-sm text-slate-500">
+                    <span>{parsedPost.content}</span>
+                    {parsedPost.location ? <span className="mt-2 text-xs font-medium text-slate-400">{parsedPost.location}</span> : null}
+                  </div>
+                )}
+              </article>
+            );
+          })}
 
           {profile.posts.length === 0 ? (
             <div className="col-span-3 app-card p-5 text-center text-sm text-slate-500">Aún no has publicado nada.</div>

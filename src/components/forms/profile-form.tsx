@@ -42,14 +42,14 @@ export function ProfileForm({
             className="text-sm text-slate-500 file:mr-3 file:rounded-full file:border-0 file:bg-neutral-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-slate-700"
           />
         </label>
-        <input name="name" className="app-input" placeholder="Nombre visible" defaultValue={defaults.name ?? ""} />
+        <input name="name" className="app-input" placeholder="Nombre visible (opcional)" defaultValue={defaults.name ?? ""} />
         <input name="city" className="app-input" placeholder="Ciudad" defaultValue={defaults.city ?? ""} />
         <div className="grid gap-2">
           <input name="username" className="app-input" placeholder="username" defaultValue={defaults.username ?? ""} />
           <p className="text-xs text-slate-500">
-            Tu username es único. No se puede repetir y solo puedes cambiarlo 3 veces cada 30 días. Te quedan{" "}
-            {usernameChangesRemaining} cambio{usernameChangesRemaining === 1 ? "" : "s"} disponible
-            {usernameChangesRemaining === 1 ? "" : "s"}.
+            {usernameChangesRemaining === Number.POSITIVE_INFINITY
+              ? "Tu username es único. No se puede repetir y, como admin, puedes cambiarlo las veces que quieras."
+              : `Tu username es único. No se puede repetir y solo puedes cambiarlo 3 veces cada 30 días. Te quedan ${usernameChangesRemaining} cambio${usernameChangesRemaining === 1 ? "" : "s"} disponible${usernameChangesRemaining === 1 ? "" : "s"}.`}
           </p>
         </div>
         <textarea name="bio" className="app-textarea min-h-28" placeholder="Biografía" defaultValue={defaults.bio ?? ""} />
@@ -62,16 +62,18 @@ export function ProfileForm({
           addressName={isVenue ? "locationAddress" : undefined}
           helperText={
             isVenue
-              ? "Elige la dirección exacta del local para que los usuarios lleguen justo al sitio correcto en el mapa."
+              ? "Elige la dirección exacta del local. Esa ubicación quedará fija y será la que verán los usuarios en el mapa."
               : "Si no quieres aparecer en el mapa, activa el modo fantasma. En el resto de modos se usará tu ubicación actual."
           }
         />
 
-        <select name="locationSharingMode" className="app-input" defaultValue={defaults.locationSharingMode ?? "GHOST"}>
-          <option value="GHOST">{isVenue ? "Ocultar en mapa" : "Modo fantasma"}</option>
-          <option value="APPROXIMATE">Ubicación aproximada</option>
-          <option value="EXACT">Ubicación exacta</option>
-        </select>
+        {!isVenue ? (
+          <select name="locationSharingMode" className="app-input" defaultValue={defaults.locationSharingMode ?? "GHOST"}>
+            <option value="GHOST">Modo fantasma</option>
+            <option value="APPROXIMATE">Ubicación aproximada</option>
+            <option value="EXACT">Ubicación exacta</option>
+          </select>
+        ) : null}
       </div>
 
       {state.error ? <p className="mt-3 text-sm text-red-500">{state.error}</p> : null}

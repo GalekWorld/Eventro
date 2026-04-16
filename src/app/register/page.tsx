@@ -104,7 +104,12 @@ export default function RegisterPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <input className="app-input" placeholder="Nombre" value={form.name} onChange={(e) => updateField("name", e.target.value)} />
+            <input
+              className="app-input"
+              placeholder="Nombre visible (opcional)"
+              value={form.name}
+              onChange={(e) => updateField("name", e.target.value)}
+            />
 
             <input
               className="app-input"

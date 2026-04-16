@@ -4,7 +4,7 @@ import { createHash } from "crypto";
 import { headers } from "next/headers";
 import { db } from "@/lib/db";
 
-export const PLATFORM_FEE_RATE = 0.0004;
+export const PLATFORM_FEE_RATE = 0.04;
 
 function startOfDay(date: Date) {
   const value = new Date(date);

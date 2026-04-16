@@ -31,6 +31,8 @@ export const createEventSchema = z
   .object({
     title: z.string().trim().min(3).max(120),
     description: z.string().trim().min(10).max(5000),
+    hasReservations: z.coerce.boolean().default(false),
+    reservationInfo: z.string().trim().max(1200).optional(),
     location: z.string().trim().min(2).max(160),
     city: z.string().trim().min(2).max(60),
     latitude: z.coerce.number().min(-90).max(90).nullable().optional(),
@@ -42,6 +44,14 @@ export const createEventSchema = z
     ticketTypes: z.array(ticketTypeSchema).min(1, "Añade al menos un tipo de entrada."),
   })
   .superRefine((value, ctx) => {
+    if (value.hasReservations && !value.reservationInfo?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["reservationInfo"],
+        message: "Explica brevemente cómo funcionan los reservados.",
+      });
+    }
+
     if (value.endDate && new Date(value.endDate) <= new Date(value.date)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -61,6 +71,40 @@ export const createEventSchema = z
     });
   });
 
+export const updateEventBasicsSchema = z
+  .object({
+    title: z.string().trim().min(3).max(120),
+    description: z.string().trim().min(10).max(5000),
+    hasReservations: z.coerce.boolean().default(false),
+    reservationInfo: z.string().trim().max(1200).optional(),
+    location: z.string().trim().min(2).max(160),
+    city: z.string().trim().min(2).max(60),
+    latitude: z.coerce.number().min(-90).max(90).nullable().optional(),
+    longitude: z.coerce.number().min(-180).max(180).nullable().optional(),
+    date: z.string().datetime(),
+    endDate: z.string().datetime().optional(),
+    imageUrl: z.string().trim().max(255).optional().or(z.literal("")),
+    published: z.coerce.boolean().default(false),
+  })
+  .superRefine((value, ctx) => {
+    if (value.hasReservations && !value.reservationInfo?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["reservationInfo"],
+        message: "Explica brevemente cómo funciona el Espacio VIP.",
+      });
+    }
+
+    if (value.endDate && new Date(value.endDate) <= new Date(value.date)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["endDate"],
+        message: "La hora de finalización debe ser posterior al inicio.",
+      });
+    }
+  });
+
 export type EventFilters = z.infer<typeof eventFiltersSchema>;
 export type TicketTypeInput = z.infer<typeof ticketTypeSchema>;
 export type CreateEventInput = z.infer<typeof createEventSchema>;
+export type UpdateEventBasicsInput = z.infer<typeof updateEventBasicsSchema>;

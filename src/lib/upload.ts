@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "fs/promises";
+import { mkdir, unlink, writeFile } from "fs/promises";
 import path from "path";
 import { randomBytes } from "crypto";
 import { recordSecurityEvent } from "@/lib/security-events";
@@ -233,4 +233,20 @@ export async function savePublicImage(file: File, folder: string) {
   await writeFile(absolutePath, bytes);
 
   return `/${relativeDir.replaceAll("\\", "/")}/${fileName}`;
+}
+
+export async function deletePublicFile(publicPath: string) {
+  const normalized = String(publicPath ?? "").trim();
+
+  if (!normalized.startsWith("/uploads/")) {
+    return;
+  }
+
+  const absolutePath = path.join(process.cwd(), "public", normalized.replaceAll("/", path.sep));
+
+  try {
+    await unlink(absolutePath);
+  } catch {
+    // ignore
+  }
 }

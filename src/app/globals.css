@@ -309,6 +309,15 @@ html[data-theme="dark"] .bg-neutral-100 {
   background-color: rgba(15, 23, 42, 0.86) !important;
 }
 
+html[data-theme="dark"] .bg-sky-50,
+html[data-theme="dark"] .bg-sky-50\/80,
+html[data-theme="dark"] .bg-emerald-50,
+html[data-theme="dark"] .bg-red-50,
+html[data-theme="dark"] .bg-amber-50,
+html[data-theme="dark"] .bg-violet-50 {
+  background-color: rgba(15, 23, 42, 0.9) !important;
+}
+
 html[data-theme="dark"] .border-neutral-200,
 html[data-theme="dark"] .border-neutral-300 {
   border-color: #334155 !important;
@@ -324,6 +333,15 @@ html[data-theme="dark"] .text-slate-600,
 html[data-theme="dark"] .text-slate-500,
 html[data-theme="dark"] .text-slate-400 {
   color: #cbd5e1 !important;
+}
+
+html[data-theme="dark"] .text-sky-800,
+html[data-theme="dark"] .text-sky-700,
+html[data-theme="dark"] .text-emerald-700,
+html[data-theme="dark"] .text-red-700,
+html[data-theme="dark"] .text-amber-700,
+html[data-theme="dark"] .text-violet-700 {
+  color: #e2e8f0 !important;
 }
 
 html[data-theme="dark"] .shadow-\[0_10px_35px_rgba\(15\,23\,42\,0\.06\)\],

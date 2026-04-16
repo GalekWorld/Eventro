@@ -52,7 +52,7 @@ export default async function FriendsPage() {
                 <p className="truncate text-sm font-semibold text-slate-950">@{friend.username ?? "usuario"}</p>
                 {isPubliclyVerified(friend) ? <VerifiedBadge tone={getVerificationTone(friend)} /> : null}
               </div>
-              <p className="truncate text-sm text-slate-500">{friend.name ?? "Usuario"}</p>
+              {friend.name ? <p className="truncate text-sm text-slate-500">{friend.name}</p> : null}
               {friend.city ? <p className="truncate text-xs text-slate-400">{friend.city}</p> : null}
             </div>
           </Link>

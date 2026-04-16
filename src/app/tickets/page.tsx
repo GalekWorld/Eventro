@@ -84,16 +84,17 @@ export default async function TicketsPage({ searchParams }: { searchParams: Sear
           <div className="grid gap-3">
             {pendingCheckouts.map((checkout) => {
               const copy = getCheckoutCopy(checkout.status);
+              const subtotal = checkout.baseAmount / 100;
+              const managementFee = checkout.managementFeeAmount / 100;
+              const total = checkout.totalAmount / 100;
 
               return (
                 <article key={checkout.id} className="app-card p-4">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="truncate text-base font-semibold text-slate-950">{checkout.event.title}</p>
-                        <span
-                          className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${copy.tone}`}
-                        >
+                        <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${copy.tone}`}>
                           {copy.icon}
                           {copy.label}
                         </span>
@@ -103,10 +104,25 @@ export default async function TicketsPage({ searchParams }: { searchParams: Sear
                       </p>
                       <p className="mt-2 text-sm text-slate-600">{checkout.failureReason ?? copy.description}</p>
                       <p className="mt-2 text-xs text-slate-400">Creado el {formatEventDate(checkout.createdAt)}</p>
+
+                      <div className="mt-4 grid gap-2 rounded-[22px] border border-neutral-200 bg-neutral-50 p-3 text-sm sm:grid-cols-3">
+                        <div className="rounded-2xl bg-white px-3 py-2">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Subtotal</p>
+                          <p className="mt-1 font-semibold text-slate-950">{formatPrice(subtotal) ?? "0 EUR"}</p>
+                        </div>
+                        <div className="rounded-2xl bg-white px-3 py-2">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Gestión</p>
+                          <p className="mt-1 font-semibold text-slate-950">{formatPrice(managementFee) ?? "0 EUR"}</p>
+                        </div>
+                        <div className="rounded-2xl bg-white px-3 py-2">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Total pagado</p>
+                          <p className="mt-1 font-semibold text-slate-950">{formatPrice(total) ?? "0 EUR"}</p>
+                        </div>
+                      </div>
                     </div>
 
                     <div className="flex flex-col items-start gap-2 sm:items-end">
-                      <span className="app-pill">{formatPrice(checkout.totalAmount / 100) ?? "0 EUR"}</span>
+                      <span className="app-pill">{formatPrice(total) ?? "0 EUR"}</span>
                       <Link href={getEventPath(checkout.event)} className="app-button-secondary">
                         Volver al evento
                       </Link>

@@ -28,7 +28,7 @@ export default async function VenuePendingPage() {
         <span className="app-pill">Estado de tu solicitud</span>
         <h1 className="mt-4 text-3xl font-bold">Solicitud de local en revisión</h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-white/64">
-          Cuando un administrador apruebe tu negocio, tu perfil pasará a local verificado y podrás publicar eventos.
+          Tu local será revisado en un plazo máximo de 24 horas. Te comunicaremos por la app si la solicitud ha sido aceptada o denegada.
         </p>
       </section>
 

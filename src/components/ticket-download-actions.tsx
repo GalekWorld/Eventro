@@ -138,6 +138,113 @@ async function buildTicketCanvas(props: TicketDownloadActionsProps) {
   return canvas;
 }
 
+async function canvasToJpegBytes(canvas: HTMLCanvasElement) {
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((nextBlob) => {
+      if (nextBlob) {
+        resolve(nextBlob);
+      } else {
+        reject(new Error("No se pudo generar el archivo de la entrada."));
+      }
+    }, "image/jpeg", 0.95);
+  });
+
+  return new Uint8Array(await blob.arrayBuffer());
+}
+
+function buildPdfBlobFromJpeg({
+  jpegBytes,
+  imageWidth,
+  imageHeight,
+  title,
+}: {
+  jpegBytes: Uint8Array;
+  imageWidth: number;
+  imageHeight: number;
+  title: string;
+}) {
+  const encoder = new TextEncoder();
+  const chunks: Uint8Array[] = [];
+  const offsets: number[] = [0];
+  let length = 0;
+
+  const pushText = (text: string) => {
+    const bytes = encoder.encode(text);
+    chunks.push(bytes);
+    length += bytes.length;
+  };
+
+  const pushBytes = (bytes: Uint8Array) => {
+    chunks.push(bytes);
+    length += bytes.length;
+  };
+
+  const registerObject = () => {
+    offsets.push(length);
+  };
+
+  const pageWidth = 595.28;
+  const pageHeight = 841.89;
+  const margin = 24;
+  const maxWidth = pageWidth - margin * 2;
+  const maxHeight = pageHeight - margin * 2;
+  const scale = Math.min(maxWidth / imageWidth, maxHeight / imageHeight);
+  const drawWidth = imageWidth * scale;
+  const drawHeight = imageHeight * scale;
+  const drawX = (pageWidth - drawWidth) / 2;
+  const drawY = (pageHeight - drawHeight) / 2;
+  const contentStream = `q\n${drawWidth.toFixed(2)} 0 0 ${drawHeight.toFixed(2)} ${drawX.toFixed(2)} ${drawY.toFixed(2)} cm\n/Im0 Do\nQ`;
+  const safeTitle = title.replace(/[()\\]/g, "");
+
+  pushText("%PDF-1.4\n");
+
+  registerObject();
+  pushText("1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
+
+  registerObject();
+  pushText("2 0 obj\n<< /Type /Pages /Count 1 /Kids [3 0 R] >>\nendobj\n");
+
+  registerObject();
+  pushText(
+    `3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth.toFixed(2)} ${pageHeight.toFixed(
+      2,
+    )}] /Resources << /XObject << /Im0 5 0 R >> >> /Contents 4 0 R >>\nendobj\n`,
+  );
+
+  registerObject();
+  pushText(`4 0 obj\n<< /Length ${contentStream.length} >>\nstream\n${contentStream}\nendstream\nendobj\n`);
+
+  registerObject();
+  pushText(
+    `5 0 obj\n<< /Type /XObject /Subtype /Image /Width ${imageWidth} /Height ${imageHeight} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpegBytes.length} >>\nstream\n`,
+  );
+  pushBytes(jpegBytes);
+  pushText("\nendstream\nendobj\n");
+
+  registerObject();
+  pushText(`6 0 obj\n<< /Producer (Eventro) /Title (${safeTitle}) >>\nendobj\n`);
+
+  const xrefOffset = length;
+  pushText(`xref\n0 ${offsets.length}\n`);
+  pushText("0000000000 65535 f \n");
+  for (let index = 1; index < offsets.length; index += 1) {
+    pushText(`${offsets[index].toString().padStart(10, "0")} 00000 n \n`);
+  }
+  pushText(`trailer\n<< /Size ${offsets.length} /Root 1 0 R /Info 6 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`);
+
+  const normalizedChunks: BlobPart[] = chunks.map((chunk) => new Uint8Array(chunk));
+  return new Blob(normalizedChunks, { type: "application/pdf" });
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 export function TicketDownloadActions(props: TicketDownloadActionsProps) {
   const [busy, setBusy] = useState<"jpeg" | "pdf" | null>(null);
 
@@ -159,38 +266,15 @@ export function TicketDownloadActions(props: TicketDownloadActionsProps) {
     try {
       setBusy("pdf");
       const canvas = await buildTicketCanvas(props);
-      const dataUrl = canvas.toDataURL("image/jpeg", 0.95);
-      const popup = window.open("", "_blank", "noopener,noreferrer");
+      const jpegBytes = await canvasToJpegBytes(canvas);
+      const pdfBlob = buildPdfBlobFromJpeg({
+        jpegBytes,
+        imageWidth: canvas.width,
+        imageHeight: canvas.height,
+        title: props.title,
+      });
 
-      if (!popup) {
-        throw new Error("Tu navegador ha bloqueado la ventana de impresión.");
-      }
-
-      popup.document.write(`
-        <html>
-          <head>
-            <title>Entrada ${props.title}</title>
-            <style>
-              body { margin: 0; background: #e2e8f0; display: flex; justify-content: center; padding: 24px; }
-              img { width: 100%; max-width: 840px; height: auto; box-shadow: 0 20px 60px rgba(15,23,42,.16); border-radius: 18px; background: white; }
-              @media print {
-                body { background: white; padding: 0; }
-                img { max-width: 100%; box-shadow: none; border-radius: 0; }
-              }
-            </style>
-          </head>
-          <body>
-            <img src="${dataUrl}" alt="Entrada" />
-            <script>
-              window.onload = function () {
-                window.focus();
-                window.print();
-              };
-            </script>
-          </body>
-        </html>
-      `);
-      popup.document.close();
+      downloadBlob(pdfBlob, `${props.title.toLowerCase().replace(/[^a-z0-9]+/gi, "-") || "entrada"}.pdf`);
     } finally {
       setBusy(null);
     }

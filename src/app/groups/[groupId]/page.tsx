@@ -93,7 +93,7 @@ export default async function GroupChatPage({ params }: { params: Promise<{ grou
                 {membership.group.joinRequests.map((request) => (
                   <div key={request.id} className="rounded-2xl bg-white p-3">
                     <p className="text-sm font-semibold text-slate-950">@{request.user.username ?? "usuario"}</p>
-                    <p className="mt-1 text-xs text-slate-500">{request.user.name ?? "Usuario"}</p>
+                    {request.user.name ? <p className="mt-1 text-xs text-slate-500">{request.user.name}</p> : null}
                     <div className="mt-3 flex flex-wrap gap-2">
                       <form action={reviewGroupJoinRequestAction}>
                         <input type="hidden" name="requestId" value={request.id} />

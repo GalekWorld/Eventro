@@ -14,10 +14,13 @@ export function PostComposer() {
 
   return (
     <form action={formAction} className="app-card rounded-[18px] p-3 sm:p-4">
-      <textarea
-        name="content"
-        className="app-textarea min-h-[96px] w-full text-sm"
-        placeholder="¿Qué te apetece compartir hoy?"
+      <textarea name="content" className="app-textarea min-h-[96px] w-full text-sm" placeholder="¿Qué te apetece compartir hoy?" />
+
+      <input
+        name="location"
+        className="app-input mt-3"
+        placeholder="Ubicación opcional, por ejemplo: Teatro Barceló, Madrid"
+        maxLength={120}
       />
 
       <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">

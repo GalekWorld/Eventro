@@ -9,6 +9,7 @@ import { LiveLocationSync } from "@/components/live-location-sync";
 import { getBlockedUserIds } from "@/lib/privacy";
 import { getMutualFriendIds } from "@/lib/social-graph";
 import { getEventPath } from "@/lib/event-path";
+import { MapLocationButton } from "@/components/map-location-button";
 
 type RangeFilter = "today" | "weekend" | "7days";
 
@@ -40,7 +41,6 @@ function getRangeWindow(range: RangeFilter, now: Date) {
     return {
       start: now,
       end: endOfDay(now),
-      title: "Hoy",
       helper: "Locales con eventos que empiezan hoy.",
       chip: "Activos hoy",
     };
@@ -55,7 +55,6 @@ function getRangeWindow(range: RangeFilter, now: Date) {
     return {
       start: now > start ? now : start,
       end,
-      title: "Este finde",
       helper: "Locales con planes del viernes al domingo.",
       chip: "Activos este finde",
     };
@@ -64,7 +63,6 @@ function getRangeWindow(range: RangeFilter, now: Date) {
   return {
     start: now,
     end: endOfDay(addDays(now, 7)),
-    title: "Próximos 7 días",
     helper: "Locales con eventos publicados durante la próxima semana.",
     chip: "Activos 7 días",
   };
@@ -99,6 +97,8 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
   if (!currentUser) {
     redirect("/login");
   }
+
+  const isVenueUser = currentUser.role === "VENUE" || currentUser.role === "VENUE_PENDING";
   const params = await searchParams;
   const range = normalizeRange(params.range);
   const cityFilter = params.city?.trim() ?? "";
@@ -106,7 +106,7 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
   const rangeWindow = getRangeWindow(range, now);
   const blockedUserIds = await getBlockedUserIds(currentUser.id);
 
-  const [following, friendIds, venues] = await Promise.all([
+  const [following, friendIds, venues, ownVenueRequest] = await Promise.all([
     db.follow.findMany({
       where: { followerId: currentUser.id },
       select: { followingId: true },
@@ -172,6 +172,17 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
       },
       take: 80,
     }),
+    isVenueUser
+      ? db.venueRequest.findUnique({
+          where: { userId: currentUser.id },
+          select: {
+            latitude: true,
+            longitude: true,
+            businessName: true,
+            city: true,
+          },
+        })
+      : Promise.resolve(null),
   ]);
 
   const followingIds = new Set(following.map((item) => item.followingId));
@@ -197,7 +208,21 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
       })
     : [];
 
-  if (currentUser.latitude == null || currentUser.longitude == null) {
+  const currentPosition = isVenueUser
+    ? ownVenueRequest?.latitude != null && ownVenueRequest?.longitude != null
+      ? {
+          latitude: ownVenueRequest.latitude,
+          longitude: ownVenueRequest.longitude,
+        }
+      : null
+    : currentUser.latitude != null && currentUser.longitude != null
+      ? {
+          latitude: currentUser.latitude,
+          longitude: currentUser.longitude,
+        }
+      : null;
+
+  if (!currentPosition) {
     return (
       <div className="mx-auto max-w-[935px] space-y-4">
         <section className="app-card p-4 sm:p-5">
@@ -205,22 +230,27 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
             <div>
               <h1 className="app-screen-title">Mapa</h1>
               <p className="mt-2 app-screen-subtitle">
-                Guarda tu ubicación exacta para ver a tus amigos y los locales con eventos cerca de ti.
+                {isVenueUser
+                  ? "Configura la ubicación fija de tu local para verlo en el mapa y revisar qué hay cerca."
+                  : "Guarda tu ubicación exacta para ver a tus amigos y los locales con eventos cerca de ti."}
               </p>
             </div>
             <Link href="/profile/private" className="app-button-secondary">
               Ajustar ubicación
             </Link>
           </div>
+          {!isVenueUser ? (
+            <div className="mt-4 space-y-2">
+              <MapLocationButton />
+              <p className="text-sm text-slate-500">
+                Si el navegador la bloqueó antes, vuelve a permitir la ubicación para esta web y pulsa el botón.
+              </p>
+            </div>
+          ) : null}
         </section>
       </div>
     );
   }
-
-  const currentPosition = {
-    latitude: currentUser.latitude,
-    longitude: currentUser.longitude,
-  };
 
   const nearbyVenues = venues
     .map((venue) => {
@@ -234,6 +264,7 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
         directionsUrl: buildDirectionsUrl(venue.latitude!, venue.longitude!),
       };
     })
+    .filter((venue) => venue.user.id !== currentUser.id)
     .sort((a, b) => a.distance - b.distance)
     .slice(0, 30);
 
@@ -245,17 +276,53 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
     .sort((a, b) => a.distance - b.distance)
     .slice(0, 20);
 
+  const ownVenuePoint =
+    isVenueUser && ownVenueRequest?.latitude != null && ownVenueRequest?.longitude != null
+      ? {
+          id: `venue-self-${currentUser.id}`,
+          label: ownVenueRequest.businessName ?? currentUser.name ?? "Tu local",
+          subtitle: `${ownVenueRequest.city ?? currentUser.city ?? "Tu local"} · ubicación fija del local`,
+          latitude: ownVenueRequest.latitude,
+          longitude: ownVenueRequest.longitude,
+          type: "venue" as const,
+          href: currentUser.username ? `/u/${currentUser.username}` : "/profile/private",
+          avatarUrl: currentUser.avatarUrl,
+          imageUrl: null,
+          fallbackText: ownVenueRequest.businessName ?? currentUser.username ?? currentUser.name ?? "L",
+          ctaLabel: "Ver local",
+          profileHref: currentUser.username ? `/u/${currentUser.username}` : undefined,
+          directionsUrl: buildDirectionsUrl(ownVenueRequest.latitude, ownVenueRequest.longitude),
+          eventPreviews:
+            venues
+              .find((venue) => venue.user.id === currentUser.id)
+              ?.user.events.map((event) => ({
+                id: event.id,
+                slug: event.slug,
+                title: event.title,
+                dateLabel: formatEventDate(event.date),
+                priceLabel: event.price == null ? "Gratis" : formatPrice(Number(event.price)) ?? "Gratis",
+                imageUrl: event.imageUrl,
+              })) ?? [],
+        }
+      : null;
+
   const points = [
-    {
-      id: "me",
-      label: "Tú",
-      subtitle: "Tu ubicación actual",
-      latitude: currentPosition.latitude,
-      longitude: currentPosition.longitude,
-      type: "me" as const,
-      avatarUrl: currentUser.avatarUrl,
-      fallbackText: currentUser.username ?? currentUser.name ?? "T",
-    },
+    ...(!isVenueUser
+      ? [
+          {
+            id: "me",
+            label: "Tú",
+            subtitle: "Tu ubicación actual",
+            latitude: currentPosition.latitude,
+            longitude: currentPosition.longitude,
+            type: "me" as const,
+            avatarUrl: currentUser.avatarUrl,
+            fallbackText: currentUser.username ?? currentUser.name ?? "T",
+          },
+        ]
+      : ownVenuePoint
+        ? [ownVenuePoint]
+        : []),
     ...friends.map((friend) => {
       const latitude = friend.locationSharingMode === "APPROXIMATE" ? approximateCoordinate(friend.latitude!) : friend.latitude!;
       const longitude = friend.locationSharingMode === "APPROXIMATE" ? approximateCoordinate(friend.longitude!) : friend.longitude!;
@@ -321,7 +388,7 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
 
   return (
     <div className="mx-auto max-w-[935px] space-y-3 sm:space-y-4">
-      <LiveLocationSync enabled={currentUser.locationSharingMode !== "GHOST"} />
+      <LiveLocationSync enabled={currentUser.role !== "VENUE" && currentUser.role !== "VENUE_PENDING" && currentUser.locationSharingMode !== "GHOST"} />
 
       <section className="app-card p-4 sm:p-5">
         <div className="flex flex-col gap-4">
@@ -334,6 +401,12 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
               Ajustar ubicación
             </Link>
           </div>
+
+          {!isVenueUser ? (
+            <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-3">
+              <MapLocationButton />
+            </div>
+          ) : null}
 
           <div className="grid gap-2 sm:grid-cols-3">
             {rangeOptions.map((option) => (

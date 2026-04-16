@@ -86,7 +86,7 @@ export default async function DirectConversationPage({ params }: { params: Promi
                   <h1 className="truncate text-lg font-semibold text-slate-950 sm:text-xl">@{otherUser.username ?? "usuario"}</h1>
                   {isPubliclyVerified(otherUser) ? <VerifiedBadge tone={getVerificationTone(otherUser)} /> : null}
                 </div>
-                <p className="truncate text-sm text-slate-500">{otherUser.name ?? "Usuario"}</p>
+                {otherUser.name ? <p className="truncate text-sm text-slate-500">{otherUser.name}</p> : null}
               </div>
             </div>
 

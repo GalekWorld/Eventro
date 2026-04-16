@@ -21,6 +21,10 @@ export async function POST(request: Request) {
     return jsonError("UNAUTHORIZED", 401);
   }
 
+  if (user.role === "VENUE" || user.role === "VENUE_PENDING") {
+    return jsonError("LOCATION_NOT_ALLOWED", 403);
+  }
+
   if (user.locationSharingMode === "GHOST") {
     return jsonError("LOCATION_DISABLED", 403);
   }

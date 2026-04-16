@@ -98,7 +98,7 @@ export function StoryViewer({ currentStoryId, stories, canDeleteCurrent, closeHr
                   </Link>
                   {isPubliclyVerified(currentStory.author) ? <VerifiedBadge tone={getVerificationTone(currentStory.author)} /> : null}
                 </div>
-                <p className="truncate text-xs text-white/75">{currentStory.author.name ?? "Usuario"}</p>
+                {currentStory.author.name ? <p className="truncate text-xs text-white/75">{currentStory.author.name}</p> : null}
               </div>
             </div>
 

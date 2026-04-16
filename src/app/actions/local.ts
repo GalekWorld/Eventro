@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import { ZodError } from "zod";
 import { requireRole } from "@/lib/auth";
 import type { ActionState } from "@/lib/http";
-import { createEventSchema, type TicketTypeInput } from "@/features/events/event.schemas";
-import { createEventForLocal } from "@/features/events/event.service";
+import { createEventSchema, type TicketTypeInput, updateEventBasicsSchema } from "@/features/events/event.schemas";
+import { createEventForLocal, updateEventBasicsForLocal } from "@/features/events/event.service";
 import { savePublicImage } from "@/lib/upload";
 import { parseCoordinate } from "@/lib/geo";
 import { db } from "@/lib/db";
@@ -99,6 +99,8 @@ export async function createEventAction(_prevState: ActionState, formData: FormD
     const input = createEventSchema.parse({
       title: formData.get("title"),
       description: formData.get("description"),
+      hasReservations: formData.get("hasReservations") === "true",
+      reservationInfo: normalize(formData.get("reservationInfo")) || undefined,
       location: formData.get("location"),
       city: formData.get("city"),
       latitude: parseCoordinate(formData.get("latitude"), "lat"),
@@ -125,6 +127,66 @@ export async function createEventAction(_prevState: ActionState, formData: FormD
 
     return {
       error: error instanceof Error ? error.message : "No se pudo crear el evento",
+    };
+  }
+}
+
+export async function updateEventBasicsAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    const user = await requireRole(["VENUE"]);
+    const eventId = normalize(formData.get("eventId"));
+    if (!eventId) {
+      return { error: "No se ha encontrado el evento." };
+    }
+
+    const imageFile = formData.get("image");
+    let imageUrl = "";
+
+    if (imageFile instanceof File && imageFile.size > 0) {
+      imageUrl = await savePublicImage(imageFile, "events");
+    }
+
+    const input = updateEventBasicsSchema.parse({
+      title: formData.get("title"),
+      description: formData.get("description"),
+      hasReservations: formData.get("hasReservations") === "true",
+      reservationInfo: normalize(formData.get("reservationInfo")) || undefined,
+      location: formData.get("location"),
+      city: formData.get("city"),
+      latitude: parseCoordinate(formData.get("latitude"), "lat"),
+      longitude: parseCoordinate(formData.get("longitude"), "lng"),
+      date: combineDateAndTime(formData.get("eventDate"), formData.get("startTime")),
+      endDate: combineDateAndTime(formData.get("eventDate"), formData.get("endTime")),
+      imageUrl,
+      published: formData.get("published") === "true",
+    });
+
+    const result = await updateEventBasicsForLocal({
+      eventId,
+      ownerId: user.id,
+      input,
+    });
+
+    if (result.count < 1) {
+      return { error: "No puedes editar este evento." };
+    }
+
+    revalidatePath("/local/dashboard");
+    revalidatePath(`/local/events/${eventId}/edit`);
+    revalidatePath(`/local/events/${eventId}/tickets`);
+    revalidatePath("/events");
+    revalidatePath("/map");
+
+    return { success: "Evento actualizado correctamente" };
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return {
+        error: error.issues[0]?.message ?? "Revisa los datos del evento.",
+      };
+    }
+
+    return {
+      error: error instanceof Error ? error.message : "No se pudo actualizar el evento",
     };
   }
 }
@@ -174,6 +236,34 @@ export async function deleteAdminEventAction(formData: FormData): Promise<void> 
   revalidatePath("/events");
   revalidatePath("/map");
   revalidatePath("/dashboard");
+}
+
+export async function featureAdminEventAction(formData: FormData): Promise<void> {
+  const admin = await requireRole(["ADMIN"]);
+  const eventId = normalize(formData.get("eventId"));
+  const mode = normalize(formData.get("mode"));
+  if (!eventId) return;
+
+  const event = await db.event.findUnique({
+    where: { id: eventId },
+    select: {
+      id: true,
+      title: true,
+    },
+  });
+
+  if (!event) return;
+
+  await createAdminAuditLog({
+    adminId: admin.id,
+    action: mode === "off" ? "unfeature_event" : "feature_event",
+    targetType: "event",
+    targetId: event.id,
+    details: event.title,
+  });
+
+  revalidatePath("/dashboard");
+  revalidatePath("/admin/venue-requests");
 }
 
 export async function addDoorStaffAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {

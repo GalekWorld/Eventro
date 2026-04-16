@@ -19,10 +19,6 @@ function buildWebsocketUrl(topics: string[]) {
   return url.toString().replace(/^http/, "ws");
 }
 
-function shouldUseWebSocketTransport() {
-  return process.env.NEXT_PUBLIC_REALTIME_MODE !== "polling";
-}
-
 export function useRealtimeTopic(topics: string[]) {
   const [lastEvent, setLastEvent] = useState<TopicRealtimeEvent | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
@@ -30,7 +26,6 @@ export function useRealtimeTopic(topics: string[]) {
 
   useEffect(() => {
     if (!topics.length) return;
-    if (!shouldUseWebSocketTransport()) return;
 
     const socket = new WebSocket(buildWebsocketUrl(topics));
     socketRef.current = socket;

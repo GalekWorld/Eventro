@@ -283,6 +283,7 @@ export function PreciseLocationPicker({
           points={mapPoints}
           heightClassName="h-72"
           zoom={16}
+          enableClustering={false}
         />
       ) : null}
     </div>

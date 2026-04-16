@@ -7,6 +7,7 @@ import type { ActionState } from "@/lib/http";
 import { createEventAction } from "@/app/actions/local";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { PreciseLocationPicker } from "@/components/precise-location-picker";
+import { serializeVipSpace } from "@/lib/vip-space";
 
 const initialState: ActionState = {};
 
@@ -51,9 +52,7 @@ function FieldCard({
   return (
     <section className="rounded-[28px] border border-neutral-200 bg-white p-4 sm:p-5">
       <div className="flex items-start gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-neutral-100 text-slate-700">
-          {icon}
-        </div>
+        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-neutral-100 text-slate-700">{icon}</div>
         <div className="min-w-0 flex-1">
           <h2 className="text-base font-semibold text-slate-950">{title}</h2>
           <p className="mt-1 text-sm text-slate-500">{description}</p>
@@ -70,6 +69,12 @@ export function CreateEventForm() {
   const [fileName, setFileName] = useState("");
   const [location, setLocation] = useState("");
   const [city, setCity] = useState("");
+  const [hasReservations, setHasReservations] = useState(false);
+  const [isAdultsOnly, setIsAdultsOnly] = useState(false);
+  const [vipHowItIs, setVipHowItIs] = useState("");
+  const [vipPrice, setVipPrice] = useState("");
+  const [vipIncludes, setVipIncludes] = useState("");
+  const [vipDescription, setVipDescription] = useState("");
   const [ticketTypes, setTicketTypes] = useState<TicketTypeDraft[]>([
     createTicketTypeDraft(),
     createTicketTypeDraft({
@@ -108,6 +113,13 @@ export function CreateEventForm() {
   const serializedTicketTypes = JSON.stringify(
     ticketTypes.map(({ id, ...ticketType }) => ticketType),
   );
+  const serializedVipSpace = serializeVipSpace({
+    howItIs: vipHowItIs,
+    price: vipPrice,
+    includes: vipIncludes,
+    description: vipDescription,
+    adultsOnly: isAdultsOnly,
+  });
 
   return (
     <form action={formAction} className="grid gap-4">
@@ -125,6 +137,50 @@ export function CreateEventForm() {
             className="app-input min-h-32 resize-none"
             placeholder="Descripción, ambiente, artistas, dress code, promos o lo que haga falta."
           />
+          <div className="rounded-[24px] border border-neutral-200 bg-neutral-50 p-4">
+            <label className="flex items-center gap-3 text-sm font-medium text-slate-700">
+              <input type="checkbox" checked={isAdultsOnly} onChange={(event) => setIsAdultsOnly(event.target.checked)} />
+              Este evento es +18
+            </label>
+            <label className="flex items-center gap-3 text-sm font-medium text-slate-700">
+              <input
+                type="checkbox"
+                checked={hasReservations}
+                onChange={(event) => setHasReservations(event.target.checked)}
+              />
+              Este evento tiene Espacio VIP
+            </label>
+            <input type="hidden" name="hasReservations" value={hasReservations ? "true" : "false"} />
+            <input type="hidden" name="reservationInfo" value={serializedVipSpace} />
+            {hasReservations ? (
+              <div className="mt-3 grid gap-3">
+                <input
+                  className="app-input"
+                  placeholder="Cómo es el Espacio VIP"
+                  value={vipHowItIs}
+                  onChange={(event) => setVipHowItIs(event.target.value)}
+                />
+                <input
+                  className="app-input"
+                  placeholder="Precio del Espacio VIP"
+                  value={vipPrice}
+                  onChange={(event) => setVipPrice(event.target.value)}
+                />
+                <input
+                  className="app-input"
+                  placeholder="Qué incluye"
+                  value={vipIncludes}
+                  onChange={(event) => setVipIncludes(event.target.value)}
+                />
+                <textarea
+                  className="app-input min-h-24 resize-none"
+                  placeholder="Descripción del Espacio VIP"
+                  value={vipDescription}
+                  onChange={(event) => setVipDescription(event.target.value)}
+                />
+              </div>
+            ) : null}
+          </div>
         </div>
       </FieldCard>
 
@@ -143,7 +199,7 @@ export function CreateEventForm() {
       <FieldCard
         icon={<Ticket className="h-5 w-5" />}
         title="Entradas"
-        description="Configura varios tipos de entrada con precio, cupo y ventana de venta, como en una herramienta real de ticketing."
+        description="Configura varios tipos de entrada con precio, cupo y ventana de venta. La descripción de la entrada principal se usará como mensaje visible del anuncio."
       >
         <div className="grid gap-4">
           {ticketTypes.map((ticketType, index) => (

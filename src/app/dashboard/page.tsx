@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Bell, Heart, MapPin, MessageCircle, QrCode, Send, ShieldCheck, Sparkles, Users } from "lucide-react";
+import { Bell, Heart, MapPin, MessageCircle, QrCode, Send, ShieldCheck, Sparkles, UserPlus, Users } from "lucide-react";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { PostComposer } from "@/components/forms/post-composer";
@@ -16,6 +16,8 @@ import { getMutualFriendIds } from "@/lib/social-graph";
 import { getEventPath } from "@/lib/event-path";
 import { purgeExpiredStories } from "@/lib/stories";
 import { PaginationControls } from "@/components/pagination-controls";
+import { parsePostContent } from "@/lib/post-content";
+import { purgeTemporaryPosts } from "@/lib/post-maintenance";
 
 type SearchParams = Promise<{ tab?: string; city?: string; page?: string }>;
 
@@ -27,6 +29,7 @@ function parsePage(value?: string) {
 }
 
 export default async function DashboardPage({ searchParams }: { searchParams: SearchParams }) {
+  await purgeTemporaryPosts();
   await purgeExpiredStories();
 
   const params = await searchParams;
@@ -64,7 +67,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
       : {}),
   };
 
-  const [events, posts, postCount, stories, suggestedUsers, friendUsers, groups] = await Promise.all([
+  const [candidateEvents, featuredAuditLogs, posts, postCount, stories, suggestedUsers, friendUsers, groups] = await Promise.all([
     db.event.findMany({
       where: {
         published: true,
@@ -78,12 +81,32 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
           : {}),
       },
       orderBy: { date: "asc" },
-      take: 3,
+      take: 20,
       select: {
         id: true,
         slug: true,
         title: true,
         city: true,
+        date: true,
+        _count: {
+          select: {
+            views: true,
+          },
+        },
+      },
+    }),
+    db.adminAuditLog.findMany({
+      where: {
+        action: {
+          in: ["feature_event", "unfeature_event"],
+        },
+        targetType: "event",
+      },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+      select: {
+        action: true,
+        targetId: true,
       },
     }),
     db.post.findMany({
@@ -187,7 +210,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
               in: friendIds,
             },
           },
-          take: 5,
+          take: 4,
           select: {
             id: true,
             username: true,
@@ -206,13 +229,38 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
     }),
   ]);
 
+  const featuredState = new Map<string, boolean>();
+  for (const log of featuredAuditLogs) {
+    if (!featuredState.has(log.targetId)) {
+      featuredState.set(log.targetId, log.action === "feature_event");
+    }
+  }
+
+  const events = candidateEvents
+    .slice()
+    .sort((left, right) => {
+      const leftManual = featuredState.get(left.id) ? 1 : 0;
+      const rightManual = featuredState.get(right.id) ? 1 : 0;
+
+      if (leftManual !== rightManual) {
+        return rightManual - leftManual;
+      }
+
+      if (left._count.views !== right._count.views) {
+        return right._count.views - left._count.views;
+      }
+
+      return new Date(left.date).getTime() - new Date(right.date).getTime();
+    })
+    .slice(0, 3);
+
   const totalPages = Math.max(1, Math.ceil(postCount / POSTS_PER_PAGE));
 
   const shortcuts = [
     { href: "/events", label: "Eventos", icon: MapPin },
     { href: "/groups", label: "Grupos", icon: Users },
     { href: "/notifications", label: "Avisos", icon: Bell },
-    { href: "/friends", label: "Amigos", icon: Users },
+    { href: "/friends", label: "Amigos", icon: UserPlus },
   ];
 
   if (user?.role === "VENUE") {
@@ -286,9 +334,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
         <section className="app-card overflow-x-auto p-2.5 sm:p-3">
           <div className="flex gap-3">
             {stories.map((story) => (
-              <Link key={story.id} href={`/stories/${story.id}`} className="min-w-[68px] text-center">
-                <div className="app-story-ring mx-auto rounded-full p-[2px]">
-                  <div className="relative flex h-[64px] w-[64px] items-center justify-center overflow-hidden rounded-full bg-white text-lg font-semibold text-slate-900">
+              <Link key={story.id} href={`/stories/${story.id}`} className="min-w-[82px] max-w-[82px] text-center">
+                <div className="app-story-ring rounded-[24px] p-[2px]">
+                  <div className="relative aspect-[3/4] overflow-hidden rounded-[22px] bg-white text-lg font-semibold text-slate-900">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={story.imageUrl} alt={story.caption ?? "story"} className="h-full w-full object-cover" />
                     {isPubliclyVerified(story.author) ? (
@@ -315,6 +363,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
         <div className="space-y-4">
           {posts.map((post) => {
             const liked = Array.isArray(post.likes) && post.likes.length > 0;
+            const parsedPost = parsePostContent(post.content);
 
             return (
               <article key={post.id} className="app-card overflow-hidden rounded-[18px]">
@@ -330,10 +379,12 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
                         </Link>
                         {isPubliclyVerified(post.author) ? <VerifiedBadge tone={getVerificationTone(post.author)} /> : null}
                       </div>
-                      <p className="truncate text-xs text-slate-500">
-                        {post.author.name ?? "Usuario"}
-                        {post.author.city ? ` · ${post.author.city}` : ""}
-                      </p>
+                      {post.author.name || post.author.city ? (
+                        <p className="truncate text-xs text-slate-500">
+                          {post.author.name ?? ""}
+                          {post.author.city ? `${post.author.name ? " · " : ""}${post.author.city}` : ""}
+                        </p>
+                      ) : null}
                     </div>
                   </div>
                   {isPubliclyVerified(post.author) ? <span className="app-pill">Verificado</span> : null}
@@ -369,11 +420,12 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
 
                   <p className="mt-3 text-sm leading-7 text-slate-800">
                     <span className="mr-2 font-semibold">@{post.author.username ?? "usuario"}</span>
-                    {post.content}
+                    {parsedPost.content}
                   </p>
+                  {parsedPost.location ? <p className="mt-2 text-xs font-medium text-slate-500">Ubicación: {parsedPost.location}</p> : null}
 
                   {user && post.authorId === user.id ? (
-                    <PostActions postId={post.id} initialContent={post.content} redirectPath={redirectPath} canDelete />
+                    <PostActions postId={post.id} initialContent={parsedPost.content} redirectPath={redirectPath} canDelete />
                   ) : null}
 
                   <div className="mt-3 space-y-3">
@@ -441,10 +493,12 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
                 <p className="text-sm font-semibold text-slate-950">@{user?.username ?? "visitante"}</p>
                 {user && isPubliclyVerified(user) ? <VerifiedBadge tone={getVerificationTone(user)} /> : null}
               </div>
-              <p className="text-sm text-slate-500">
-                {user?.name ?? "Tu perfil"}
-                {user?.city ? ` · ${user.city}` : ""}
-              </p>
+              {user?.name || user?.city ? (
+                <p className="text-sm text-slate-500">
+                  {user?.name ?? ""}
+                  {user?.city ? `${user?.name ? " · " : ""}${user.city}` : ""}
+                </p>
+              ) : null}
             </div>
           </div>
         </div>
@@ -466,10 +520,12 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
                       <p className="text-sm font-semibold text-slate-950">@{suggested.username}</p>
                       {isPubliclyVerified(suggested) ? <VerifiedBadge tone={getVerificationTone(suggested)} /> : null}
                     </div>
-                    <p className="text-xs text-slate-500">
-                      {suggested.name ?? "Usuario"}
-                      {suggested.city ? ` · ${suggested.city}` : ""}
-                    </p>
+                    {suggested.name || suggested.city ? (
+                      <p className="text-xs text-slate-500">
+                        {suggested.name ?? ""}
+                        {suggested.city ? `${suggested.name ? " · " : ""}${suggested.city}` : ""}
+                      </p>
+                    ) : null}
                   </div>
                 </div>
                 <Link href={`/u/${suggested.username ?? ""}`} className="text-xs font-semibold text-sky-500">
@@ -502,12 +558,20 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
           </div>
           <div className="mt-4 space-y-3">
             {friendUsers.length > 0 ? (
-              friendUsers.map((friend) => (
-                <Link key={friend.id} href={`/u/${friend.username ?? ""}`} className="block rounded-2xl bg-neutral-50 p-3 transition hover:bg-neutral-100">
-                  <p className="text-sm font-semibold text-slate-950">@{friend.username}</p>
-                  <p className="mt-1 text-xs text-slate-500">{friend.name ?? "Usuario"}</p>
+              <>
+                {friendUsers.map((friend) => (
+                  <Link key={friend.id} href={`/u/${friend.username ?? ""}`} className="block rounded-2xl bg-neutral-50 p-3 transition hover:bg-neutral-100">
+                    <p className="text-sm font-semibold text-slate-950">@{friend.username}</p>
+                    {friend.name ? <p className="mt-1 text-xs text-slate-500">{friend.name}</p> : null}
+                  </Link>
+                ))}
+                <Link
+                  href="/friends"
+                  className="flex items-center justify-center rounded-2xl border border-neutral-200 px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-neutral-50"
+                >
+                  Ver más
                 </Link>
-              ))
+              </>
             ) : (
               <p className="text-sm text-slate-500">Cuando os seguís mutuamente aparecerán aquí.</p>
             )}

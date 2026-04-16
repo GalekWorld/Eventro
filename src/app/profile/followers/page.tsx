@@ -57,7 +57,7 @@ export default async function ProfileFollowersPage() {
                 <p className="truncate text-sm font-semibold text-slate-950">@{follower.username ?? "usuario"}</p>
                 {isPubliclyVerified(follower) ? <VerifiedBadge tone={getVerificationTone(follower)} /> : null}
               </div>
-              <p className="truncate text-sm text-slate-500">{follower.name ?? "Usuario"}</p>
+              {follower.name ? <p className="truncate text-sm text-slate-500">{follower.name}</p> : null}
             </div>
           </Link>
         ))}

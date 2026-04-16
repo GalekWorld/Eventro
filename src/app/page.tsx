@@ -12,5 +12,9 @@ export default async function HomePage() {
     redirect("/local/dashboard");
   }
 
+  if (user.role === "VENUE_PENDING") {
+    redirect("/venue/pending");
+  }
+
   redirect("/dashboard");
 }

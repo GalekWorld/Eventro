@@ -13,10 +13,6 @@ function getWebSocketUrl(topics: string[]) {
   return url.toString().replace(/^http/, "ws");
 }
 
-function shouldUseWebSocketTransport() {
-  return process.env.NEXT_PUBLIC_REALTIME_MODE !== "polling";
-}
-
 export function RealtimeRefresh({
   topics,
   fallbackIntervalMs = 15000,
@@ -63,11 +59,6 @@ export function RealtimeRefresh({
     };
 
     const connect = () => {
-      if (!shouldUseWebSocketTransport()) {
-        startFallback();
-        return;
-      }
-
       socket = new WebSocket(getWebSocketUrl(topics));
 
       socket.addEventListener("open", () => {

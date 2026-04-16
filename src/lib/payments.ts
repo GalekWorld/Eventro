@@ -1,7 +1,7 @@
 import Stripe from "stripe";
 
-export const PLATFORM_REVENUE_SHARE_RATE = 0.0004;
-export const PLATFORM_MANAGEMENT_FEE_RATE = 0.0003;
+export const PLATFORM_REVENUE_SHARE_RATE = 0.04;
+export const PLATFORM_MANAGEMENT_FEE_RATE = 0.03;
 export const DEFAULT_PAYMENT_CURRENCY = "eur";
 
 export function calculatePlatformRevenueAmount(baseAmount: number) {

@@ -335,7 +335,7 @@ export default async function LocalDashboardPage({ searchParams }: { searchParam
     <div className="mx-auto w-full max-w-[1240px] space-y-4 sm:space-y-5 lg:space-y-6">
       <SectionTitle
         title={user.name ?? user.username ?? "Mi local"}
-        subtitle="Panel de control con ventas, rendimiento, compradores y ocupación en un solo vistazo."
+        subtitle="Panel de control con ventas, rendimiento, compradores, ocupación y anuncios del local en un solo vistazo."
       />
 
       <section className="app-card overflow-hidden p-0">
@@ -421,7 +421,7 @@ export default async function LocalDashboardPage({ searchParams }: { searchParam
           <div className="rounded-[28px] border border-neutral-200 bg-white p-4">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Facturación neta</p>
             <p className="mt-2 text-2xl font-semibold text-slate-950">{formatPrice(venueNet) ?? "0 EUR"}</p>
-            <p className="mt-1 text-sm text-slate-500">Después de la comision de plataforma</p>
+            <p className="mt-1 text-sm text-slate-500">Después de la comisión de plataforma</p>
           </div>
           <div className="rounded-[28px] border border-neutral-200 bg-white p-4">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Eventos calientes</p>
@@ -435,10 +435,10 @@ export default async function LocalDashboardPage({ searchParams }: { searchParam
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Cobros reales</p>
-            <h2 className="mt-2 text-xl font-semibold text-slate-950">Stripe Connect para liquidaciónes</h2>
+            <h2 className="mt-2 text-xl font-semibold text-slate-950">Stripe Connect para liquidaciones</h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
-              La sala se queda con el 99,96% del valor de la entrada y la plataforma retiene el 0,04%.
-              Además, al comprador se le añade un 0,03% extra por gastos de gestión.
+              La sala se queda con el 96% del valor de la entrada y la plataforma retiene el 4%.
+              Además, al comprador se le añade un 3% extra por gastos de gestión.
             </p>
           </div>
 
@@ -466,7 +466,7 @@ export default async function LocalDashboardPage({ searchParams }: { searchParam
                   </form>
                 ) : null}
                 <Link href="/local/payouts" className="app-button-secondary w-full sm:w-auto">
-                  Ver liquidaciónes
+                  Ver liquidaciones
                 </Link>
               </>
             ) : (
@@ -520,7 +520,7 @@ export default async function LocalDashboardPage({ searchParams }: { searchParam
                 <span className="font-semibold text-slate-950">{formatPrice(completedRevenueShare) ?? "0 EUR"}</span>
               </div>
               <div className="flex items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3 text-sm">
-                <span className="text-slate-500">Gestion al comprador</span>
+                <span className="text-slate-500">Gestión al comprador</span>
                 <span className="font-semibold text-slate-950">{formatPrice(completedManagementFees) ?? "0 EUR"}</span>
               </div>
               <div className="flex items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3 text-sm">
@@ -551,7 +551,7 @@ export default async function LocalDashboardPage({ searchParams }: { searchParam
         <StatCard
           label="Neto estimado"
           value={formatPrice(venueNet) ?? "0 EUR"}
-          helper={`Descontando una comisión del ${(PLATFORM_FEE_RATE * 100).toFixed(0)}%.`}
+          helper={`Descontando una comisión del ${(PLATFORM_FEE_RATE * 100).toFixed(2)}%.`}
           icon={<TrendingUp className="h-5 w-5 text-sky-500" />}
         />
         <StatCard
@@ -614,7 +614,7 @@ export default async function LocalDashboardPage({ searchParams }: { searchParam
         <StatCard
           label="Comisión plataforma"
           value={formatPrice(platformFee) ?? "0 EUR"}
-          helper="Estimacion de retencion de plataforma."
+          helper="Estimación interna de retención de plataforma."
           icon={<Shield className="h-5 w-5 text-slate-500" />}
         />
       </div>
@@ -668,7 +668,7 @@ export default async function LocalDashboardPage({ searchParams }: { searchParam
           </div>
 
           <div className="mt-4 overflow-x-auto rounded-[28px] border border-neutral-200">
-            <div className="min-w-[640px] lg:min-w-[720px]">
+              <div className="min-w-[580px] lg:min-w-[720px]">
               <div className="grid grid-cols-[minmax(0,1.4fr)_0.8fr_0.75fr_0.75fr_0.75fr] gap-3 border-b border-neutral-200 bg-neutral-50 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
                 <span>Evento</span>
                 <span>Ingresos</span>
@@ -679,7 +679,7 @@ export default async function LocalDashboardPage({ searchParams }: { searchParam
 
               <div className="divide-y divide-neutral-200">
                 {eventPerformance.slice(0, 8).map((event) => (
-                  <div key={event.id} className="grid grid-cols-[minmax(0,1.4fr)_0.8fr_0.75fr_0.75fr_0.75fr] gap-3 px-4 py-4 text-sm">
+                  <div key={event.id} className="grid grid-cols-[minmax(0,1.4fr)_0.8fr_0.75fr_0.75fr_0.75fr] gap-3 px-3 py-4 text-sm sm:px-4">
                     <div className="min-w-0">
                       <p className="truncate font-semibold text-slate-950">{event.title}</p>
                       <p className="mt-1 truncate text-xs text-slate-500">
@@ -691,9 +691,14 @@ export default async function LocalDashboardPage({ searchParams }: { searchParam
                     <span className="text-slate-600">{formatCompactNumber(event.sold)}</span>
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-slate-600">{formatPercentage(event.conversion)}</span>
-                      <Link href={`/local/events/${event.id}/tickets`} className="text-sky-600 transition hover:text-sky-700">
-                        Ver
-                      </Link>
+                      <div className="flex items-center gap-3">
+                        <Link href={`/local/events/${event.id}/edit`} className="text-slate-500 transition hover:text-slate-700">
+                          Editar
+                        </Link>
+                        <Link href={`/local/events/${event.id}/tickets`} className="text-sky-600 transition hover:text-sky-700">
+                          Ver
+                        </Link>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -716,16 +721,16 @@ export default async function LocalDashboardPage({ searchParams }: { searchParam
             <div className="mt-4 space-y-3">
               {buyerLeaderboard.map((buyer, index) => (
                 <div key={buyer.buyerId} className="rounded-[28px] border border-neutral-200 bg-neutral-50 p-4">
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-slate-950">
                         {index + 1}. @{buyer.label}
                       </p>
-                      <p className="mt-1 text-xs text-slate-500">
+                      <p className="mt-1 text-xs leading-5 text-slate-500">
                         {buyer.tickets} entradas / última compra {formatEventDate(buyer.lastPurchaseAt)}
                       </p>
                     </div>
-                    <span className="app-pill">{formatPrice(buyer.revenue) ?? "0 EUR"}</span>
+                    <span className="app-pill self-start sm:self-auto">{formatPrice(buyer.revenue) ?? "0 EUR"}</span>
                   </div>
                 </div>
               ))}
@@ -747,12 +752,12 @@ export default async function LocalDashboardPage({ searchParams }: { searchParam
             <div className="mt-4 space-y-3">
               {ticketBreakdown.slice(0, 6).map((ticketType) => (
                 <div key={ticketType.label} className="rounded-[28px] border border-neutral-200 bg-neutral-50 p-4">
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-slate-950">{ticketType.label}</p>
                       <p className="mt-1 text-xs text-slate-500">{ticketType.tickets} entradas vendidas</p>
                     </div>
-                    <span className="app-pill">{formatPrice(ticketType.revenue) ?? "0 EUR"}</span>
+                    <span className="app-pill self-start sm:self-auto">{formatPrice(ticketType.revenue) ?? "0 EUR"}</span>
                   </div>
                 </div>
               ))}
@@ -780,14 +785,14 @@ export default async function LocalDashboardPage({ searchParams }: { searchParam
           <div className="mt-4 space-y-3">
             {inventoryByType.map((ticketType) => (
               <div key={ticketType.id} className="rounded-[28px] border border-neutral-200 bg-neutral-50 p-4">
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-slate-950">{ticketType.label}</p>
                     <p className="mt-1 text-xs text-slate-500">
                       {ticketType.capacity > 0 ? `${ticketType.sold}/${ticketType.capacity} vendidas` : `${ticketType.sold} vendidas`}
                     </p>
                   </div>
-                  <span className="app-pill">{formatPrice(ticketType.price) ?? "0 EUR"}</span>
+                  <span className="app-pill self-start sm:self-auto">{formatPrice(ticketType.price) ?? "0 EUR"}</span>
                 </div>
 
                 <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-neutral-200">
@@ -820,7 +825,7 @@ export default async function LocalDashboardPage({ searchParams }: { searchParam
           </div>
 
           <div className="mt-4 overflow-x-auto rounded-[28px] border border-neutral-200">
-            <div className="min-w-[620px] lg:min-w-[680px]">
+              <div className="min-w-[560px] lg:min-w-[680px]">
               <div className="grid grid-cols-[minmax(0,1.1fr)_1fr_0.8fr_0.8fr] gap-3 border-b border-neutral-200 bg-neutral-50 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
                 <span>Comprador</span>
                 <span>Evento</span>
@@ -832,7 +837,7 @@ export default async function LocalDashboardPage({ searchParams }: { searchParam
                 {filteredPurchases.slice(0, 10).map((purchase) => (
                   <div
                     key={purchase.id}
-                    className="grid grid-cols-[minmax(0,1.1fr)_1fr_0.8fr_0.8fr] gap-3 px-4 py-4 text-sm"
+                    className="grid grid-cols-[minmax(0,1.1fr)_1fr_0.8fr_0.8fr] gap-3 px-3 py-4 text-sm sm:px-4"
                   >
                     <div className="min-w-0">
                       <p className="truncate font-semibold text-slate-950">

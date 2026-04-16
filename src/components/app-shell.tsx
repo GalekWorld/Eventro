@@ -67,7 +67,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
     <div className="min-h-screen bg-app-shell text-slate-900">
       {user ? <BrowserNotificationListener userId={user.id} /> : null}
       <div className="mx-auto flex min-h-screen w-full max-w-[1180px] gap-4 px-0 sm:px-4 sm:py-4 xl:gap-6">
-        <aside className="hidden w-72 shrink-0 flex-col justify-between rounded-[28px] border border-neutral-200 bg-white p-5 shadow-[0_10px_35px_rgba(15,23,42,0.06)] xl:flex">
+        <aside className="sticky top-4 hidden h-[calc(100vh-2rem)] w-72 shrink-0 flex-col justify-between self-start rounded-[28px] border border-neutral-200 bg-white p-5 shadow-[0_10px_35px_rgba(15,23,42,0.06)] xl:flex">
           <div className="space-y-6">
             <div className="border-b border-neutral-200 pb-5">
               <Link href="/dashboard" className="font-['Pacifico'] text-3xl text-slate-950">
@@ -114,7 +114,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
                     href="/search"
                     className="flex h-11 items-center justify-center rounded-xl bg-neutral-100 text-sm text-slate-500 transition hover:bg-neutral-200"
                   >
-                    Buscar personas, grupos o eventos
+                    Buscar personas, eventos o grupos
                   </Link>
                 </div>
               </div>

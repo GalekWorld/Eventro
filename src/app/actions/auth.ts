@@ -32,7 +32,7 @@ export async function registerAction(_prevState: ActionState, formData: FormData
     });
 
     const user = await registerUser(input);
-    redirect(user.role === "VENUE" ? "/local/dashboard" : "/dashboard");
+    redirect(user.role === "VENUE" ? "/local/dashboard" : user.role === "VENUE_PENDING" ? "/venue/pending" : "/dashboard");
   } catch (error) {
     if (isRedirectError(error)) {
       throw error;
@@ -60,7 +60,7 @@ export async function loginAction(_prevState: ActionState, formData: FormData): 
     });
 
     const user = await loginUser(input);
-    redirect(user.role === "VENUE" ? "/local/dashboard" : "/dashboard");
+    redirect(user.role === "VENUE" ? "/local/dashboard" : user.role === "VENUE_PENDING" ? "/venue/pending" : "/dashboard");
   } catch (error) {
     if (isRedirectError(error)) {
       throw error;

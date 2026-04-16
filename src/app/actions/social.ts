@@ -22,6 +22,10 @@ import { createAdminAuditLog } from "@/lib/admin-audit";
 import { conversationTopic, eventTopic, groupTopic, publishRealtimeEvent, userTopic } from "@/lib/realtime";
 import { sendTelegramAlert } from "@/lib/telegram";
 import { queuePushNotificationForUser } from "@/lib/web-push";
+import { buildPostContent, parsePostContent } from "@/lib/post-content";
+import { purgeTemporaryPosts } from "@/lib/post-maintenance";
+import { listHighlightedStoryIdsForUser } from "@/lib/story-metadata";
+import { canUserAccessEventChat } from "@/features/events/event.service";
 
 function normalize(value: FormDataEntryValue | null) {
   return String(value ?? "").trim();
@@ -306,6 +310,7 @@ export async function reportUserAction(_prevState: ActionState, formData: FormDa
 
 export async function createPostAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
   try {
+    await purgeTemporaryPosts();
     const currentUser = await requireAuth();
     await assertRateLimit({
       key: `post:create:${currentUser.id}`,
@@ -316,6 +321,7 @@ export async function createPostAction(_prevState: ActionState, formData: FormDa
     });
 
     const content = clampText(formData.get("content"), 2_000);
+    const location = clampText(formData.get("location"), 120);
     const file = formData.get("image");
     const showOnProfile = normalize(formData.get("showOnProfile")) === "on";
     let imageUrl: string | null = null;
@@ -331,7 +337,7 @@ export async function createPostAction(_prevState: ActionState, formData: FormDa
     await db.post.create({
       data: {
         authorId: currentUser.id,
-        content,
+        content: buildPostContent(content, location || null),
         imageUrl,
         showOnProfile,
       },
@@ -360,7 +366,7 @@ export async function updatePostAction(_prevState: ActionState, formData: FormDa
 
     const post = await db.post.findUnique({
       where: { id: postId },
-      select: { id: true, authorId: true },
+      select: { id: true, authorId: true, content: true },
     });
 
     if (!post || post.authorId !== currentUser.id) {
@@ -373,7 +379,7 @@ export async function updatePostAction(_prevState: ActionState, formData: FormDa
 
     await db.post.update({
       where: { id: postId },
-      data: { content },
+      data: { content: buildPostContent(content, parsePostContent(post.content).location) },
     });
 
     safeRevalidatePath(redirectPath, "/dashboard");
@@ -511,6 +517,46 @@ export async function deleteStoryAction(formData: FormData) {
   publishUserRefresh([currentUser.id], "story:delete", storyId);
 }
 
+export async function toggleStoryHighlightAction(formData: FormData) {
+  const currentUser = await requireAuth();
+  const storyId = normalize(formData.get("storyId"));
+
+  if (!storyId) return;
+
+  const story = await db.story.findUnique({
+    where: { id: storyId },
+    select: {
+      id: true,
+      authorId: true,
+    },
+  });
+
+  if (!story || story.authorId !== currentUser.id) {
+    return;
+  }
+
+  const highlightedIds = await listHighlightedStoryIdsForUser(currentUser.id);
+  const isHighlighted = highlightedIds.includes(storyId);
+
+  await db.securityEvent.create({
+    data: {
+      type: "story_highlight",
+      key: storyId,
+      userId: currentUser.id,
+      message: isHighlighted ? "unhighlighted" : "highlighted",
+      metadata: JSON.stringify({ storyId }),
+    },
+  });
+
+  revalidatePath("/profile");
+  revalidatePath("/profile/private");
+  if (currentUser.username) {
+    revalidatePath(`/u/${currentUser.username}`);
+  }
+  revalidatePath(`/stories/${storyId}`);
+  publishUserRefresh([currentUser.id], "story:highlight", storyId);
+}
+
 export async function createGroupAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
   try {
     const currentUser = await requireAuth();
@@ -583,13 +629,15 @@ export async function updateProfileAction(_prevState: ActionState, formData: For
     const requestedLocationMode = normalize(formData.get("locationSharingMode"));
     const desiredUsername = normalizeUsername(normalize(formData.get("username")));
     const avatar = formData.get("avatar");
-    const locationSharingMode =
-      requestedLocationMode === "EXACT"
+    const isVenueProfile = currentUser.role === "VENUE" || currentUser.role === "VENUE_PENDING";
+    const locationSharingMode = isVenueProfile
+      ? "GHOST"
+      : requestedLocationMode === "EXACT"
         ? "EXACT"
         : requestedLocationMode === "APPROXIMATE"
           ? "APPROXIMATE"
           : "GHOST";
-    const shareLocation = locationSharingMode !== "GHOST";
+    const shareLocation = isVenueProfile ? false : locationSharingMode !== "GHOST";
     const isUsernameChange = Boolean(currentUser.username && currentUser.username !== desiredUsername);
 
     if (desiredUsername.length < 3) {
@@ -609,7 +657,7 @@ export async function updateProfileAction(_prevState: ActionState, formData: For
       }
     }
 
-    if (isUsernameChange) {
+    if (isUsernameChange && currentUser.role !== "ADMIN") {
       const usernameChangesThisMonth = await db.usernameChange.count({
         where: {
           userId: currentUser.id,
@@ -640,9 +688,9 @@ export async function updateProfileAction(_prevState: ActionState, formData: For
           username,
           shareLocation,
           locationSharingMode,
-          latitude,
-          longitude,
-          locationSharedAt: shareLocation && latitude != null && longitude != null ? new Date() : null,
+          latitude: isVenueProfile ? null : latitude,
+          longitude: isVenueProfile ? null : longitude,
+          locationSharedAt: isVenueProfile ? null : shareLocation && latitude != null && longitude != null ? new Date() : null,
           ...(avatarUrl ? { avatarUrl } : {}),
         },
       });
@@ -658,7 +706,7 @@ export async function updateProfileAction(_prevState: ActionState, formData: For
       }
     });
 
-    if (currentUser.role === "VENUE") {
+    if (isVenueProfile) {
       await db.venueRequest.update({
         where: { userId: currentUser.id },
         data: {
@@ -1596,6 +1644,7 @@ export async function markNotificationsReadAction() {
 
 export async function updateLiveLocationAction(formData: FormData) {
   const currentUser = await requireAuth();
+  if (currentUser.role === "VENUE" || currentUser.role === "VENUE_PENDING") return;
   if (currentUser.locationSharingMode === "GHOST") return;
   const latitude = parseCoordinate(formData.get("latitude"), "lat");
   const longitude = parseCoordinate(formData.get("longitude"), "lng");
@@ -1634,42 +1683,51 @@ export async function sendEventChatMessageAction(_prevState: ActionState, formDa
       return { error: "Escribe un mensaje valido." };
     }
 
-    const [event, participant] = await Promise.all([
-      db.event.findUnique({
-        where: { id: eventId },
-        select: {
-          id: true,
-          ownerId: true,
-          title: true,
-          date: true,
-          endDate: true,
-        },
-      }),
-      db.eventChatParticipant.findUnique({
-        where: {
-          eventId_userId: {
-            eventId,
-            userId: currentUser.id,
-          },
-        },
-        select: { id: true },
-      }),
-    ]);
+    const event = await db.event.findUnique({
+      where: { id: eventId },
+      select: {
+        id: true,
+        ownerId: true,
+        title: true,
+        date: true,
+        endDate: true,
+      },
+    });
 
     if (!event) {
       return { error: "Ese evento ya no existe." };
     }
 
-    const accessWindowEndsAt = new Date((event.endDate ?? event.date).getTime() + 12 * 60 * 60 * 1000);
-    const hasAccess = currentUser.role === "ADMIN" || event.ownerId === currentUser.id || Boolean(participant);
+    const hasAccess = await canUserAccessEventChat({
+      eventId,
+      userId: currentUser.id,
+      role: currentUser.role,
+      ownerId: event.ownerId,
+    });
 
     if (!hasAccess) {
       return { error: "Necesitas una entrada confirmada para escribir en este chat." };
     }
 
+    const accessWindowEndsAt = new Date((event.endDate ?? event.date).getTime() + 12 * 60 * 60 * 1000);
+
     if (new Date() > accessWindowEndsAt) {
       return { error: "El chat temporal de este evento ya ha finalizado." };
     }
+
+    await db.eventChatParticipant.upsert({
+      where: {
+        eventId_userId: {
+          eventId,
+          userId: currentUser.id,
+        },
+      },
+      update: {},
+      create: {
+        eventId,
+        userId: currentUser.id,
+      },
+    });
 
     const message = await db.eventChatMessage.create({
       data: {

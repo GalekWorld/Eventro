@@ -9,6 +9,7 @@ import {
   completePaymentCheckout,
   createPaymentCheckout,
   inspectVenueTicketByCode,
+  purchaseTicketsForEvent,
   prepareTicketCheckout,
   redeemTicketDrink,
   validateVenueTicket,
@@ -60,6 +61,24 @@ export async function purchaseEventTicketsAction(
       ticketTypeId,
       quantity,
     });
+
+    if (checkout.ownerComplimentary) {
+      await purchaseTicketsForEvent({
+        buyerId: user.id,
+        eventId,
+        ticketTypeId,
+        quantity,
+        allowOwnerComplimentary: true,
+      });
+
+      revalidatePath(getEventPath(checkout.event));
+      revalidatePath("/tickets");
+      revalidatePath(`/local/events/${eventId}/tickets`);
+
+      return {
+        success: "Entradas reservadas gratis para tu local. Ya las tienes en tu cartera.",
+      };
+    }
 
     if (isStripePaymentsEnabled()) {
       const paymentCheckout = await createPaymentCheckout({

@@ -1,6 +1,7 @@
 import type { IncomingMessage, Server as HttpServer } from "http";
 import type { Duplex } from "stream";
 import { db } from "./db";
+import { canUserAccessEventChat } from "@/features/events/event.service";
 import { WebSocket, WebSocketServer } from "ws";
 
 type RealtimeTopic = `user:${string}` | `conversation:${string}` | `group:${string}` | `event:${string}`;
@@ -117,14 +118,7 @@ async function canSubscribe(userId: string, topic: string): Promise<boolean> {
     const eventId = topic.slice("event:".length);
     if (!eventId) return false;
 
-    const [participant, user, event] = await Promise.all([
-      db.eventChatParticipant.findFirst({
-        where: {
-          eventId,
-          userId,
-        },
-        select: { id: true },
-      }),
+    const [user, event] = await Promise.all([
       db.user.findUnique({
         where: { id: userId },
         select: { role: true },
@@ -135,10 +129,14 @@ async function canSubscribe(userId: string, topic: string): Promise<boolean> {
       }),
     ]);
 
-    if (participant) return true;
-    if (!event) return false;
+    if (!user || !event) return false;
 
-    return event.ownerId === userId || user?.role === "ADMIN";
+    return canUserAccessEventChat({
+      eventId,
+      userId,
+      role: user.role,
+      ownerId: event.ownerId,
+    });
   }
 
   return false;

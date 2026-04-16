@@ -3,7 +3,7 @@ import { BadgeCheck, CreditCard, Flag, Search, ShieldCheck, Store, Trash2 } from
 import { requireRole } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { reviewVenueRequestAction } from "@/app/actions/venue";
-import { deleteAdminEventAction } from "@/app/actions/local";
+import { deleteAdminEventAction, featureAdminEventAction } from "@/app/actions/local";
 import {
   deleteDirectMessageAction,
   deleteEventChatMessageAction,
@@ -114,7 +114,7 @@ export default async function AdminVenueRequestsPage({ searchParams }: { searchP
   const query = String(params.q ?? "").trim();
   const kindFilter = String(params.kind ?? "all").toLowerCase();
 
-  const [requests, events, reports, auditLogs, platformPayments, securityEvents, suspendedUsersCount] = await Promise.all([
+  const [requests, events, reports, auditLogs, platformPayments, securityEvents, suspendedUsersCount, featuredLogs] = await Promise.all([
     prisma.venueRequest.findMany({
       orderBy: { createdAt: "desc" },
       include: { user: { select: { id: true, name: true, email: true, role: true } } },
@@ -151,7 +151,35 @@ export default async function AdminVenueRequestsPage({ searchParams }: { searchP
       include: { user: { select: { username: true, name: true } } },
     }).catch(() => []),
     prisma.user.count({ where: { suspendedAt: { not: null } } }).catch(() => 0),
+    prisma.adminAuditLog.findMany({
+      where: {
+        action: {
+          in: ["feature_event", "unfeature_event"],
+        },
+        targetType: "event",
+      },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+      select: {
+        action: true,
+        targetId: true,
+      },
+    }).catch(() => []),
   ]);
+
+  const featuredState = new Map<string, boolean>();
+  for (const log of featuredLogs) {
+    if (!featuredState.has(log.targetId)) {
+      featuredState.set(log.targetId, log.action === "feature_event");
+    }
+  }
+  const featuredEventsCount = events.filter((event) => featuredState.get(event.id)).length;
+  const sortedEvents = [...events].sort((a, b) => {
+    const aFeatured = featuredState.get(a.id) ? 1 : 0;
+    const bFeatured = featuredState.get(b.id) ? 1 : 0;
+    if (aFeatured !== bFeatured) return bFeatured - aFeatured;
+    return new Date(a.date).getTime() - new Date(b.date).getTime();
+  });
 
   const openReportsCount = reports.filter((report) => report.status === "OPEN").length;
   const resolvedReportsCount = reports.filter((report) => report.status === "RESOLVED").length;
@@ -434,16 +462,19 @@ export default async function AdminVenueRequestsPage({ searchParams }: { searchP
 
         <div className="space-y-4">
           <section className="app-card p-5">
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="text-xl font-semibold text-slate-950">Anuncios publicados</h2>
-                <p className="mt-1 text-sm text-slate-500">Retira eventos publicados si hace falta intervenir rápido.</p>
+                <p className="mt-1 text-sm text-slate-500">Gestiona qué eventos se destacan en home y retira anuncios si hace falta intervenir rápido.</p>
               </div>
-              <span className="app-pill">{events.length}</span>
+              <div className="flex flex-wrap gap-2">
+                <span className="app-pill">{events.length} anuncios</span>
+                <span className="app-pill">{featuredEventsCount} destacados</span>
+              </div>
             </div>
 
             <div className="mt-4 grid gap-3">
-              {events.map((event) => (
+              {sortedEvents.map((event) => (
                 <article key={event.id} className="rounded-3xl border border-neutral-200 bg-neutral-50 p-4">
                   <div className="flex flex-col gap-4">
                     <div className="min-w-0">
@@ -456,13 +487,22 @@ export default async function AdminVenueRequestsPage({ searchParams }: { searchP
                       </p>
                     </div>
 
-                    <form action={deleteAdminEventAction}>
-                      <input type="hidden" name="eventId" value={event.id} />
-                      <button className="inline-flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-100" type="submit">
-                        <Trash2 className="h-4 w-4" />
-                        Borrar anuncio
-                      </button>
-                    </form>
+                    <div className="flex flex-wrap gap-2">
+                      <form action={featureAdminEventAction}>
+                        <input type="hidden" name="eventId" value={event.id} />
+                        <input type="hidden" name="mode" value={featuredState.get(event.id) ? "off" : "on"} />
+                        <button className="app-button-secondary" type="submit">
+                          {featuredState.get(event.id) ? "Quitar destacado" : "Destacar"}
+                        </button>
+                      </form>
+                      <form action={deleteAdminEventAction}>
+                        <input type="hidden" name="eventId" value={event.id} />
+                        <button className="inline-flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-100" type="submit">
+                          <Trash2 className="h-4 w-4" />
+                          Borrar anuncio
+                        </button>
+                      </form>
+                    </div>
                   </div>
                 </article>
               ))}
@@ -486,7 +526,7 @@ export default async function AdminVenueRequestsPage({ searchParams }: { searchP
                 <p className="mt-3 text-2xl font-semibold text-slate-950">{formatPrice(platformPayments.summary.grossSales) ?? "0 EUR"}</p>
               </div>
               <div className="rounded-3xl border border-neutral-200 bg-neutral-50 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-slate-400">0,04% plataforma</p>
+                <p className="text-xs uppercase tracking-[0.18em] text-slate-400">4% plataforma</p>
                 <p className="mt-3 text-2xl font-semibold text-slate-950">{formatPrice(platformPayments.summary.revenueShare) ?? "0 EUR"}</p>
               </div>
               <div className="rounded-3xl border border-neutral-200 bg-neutral-50 p-4">

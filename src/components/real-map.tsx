@@ -49,12 +49,23 @@ function getMarkerTheme(type: RealMapPoint["type"]) {
   return { ring: "#e11d48", fill: "#ffffff" };
 }
 
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
 function createAvatarMarker(point: RealMapPoint) {
   const theme = getMarkerTheme(point.type);
-  const fallback = point.fallbackText?.slice(0, 1).toUpperCase() ?? "•";
+  const fallback = escapeHtml(point.fallbackText?.slice(0, 1).toUpperCase() ?? "•");
+  const safeLabel = escapeHtml(point.label);
+  const safeImageUrl = point.avatarUrl ?? point.imageUrl;
   const inner =
-    point.avatarUrl || point.imageUrl
-      ? `<img src="${point.avatarUrl ?? point.imageUrl}" alt="${point.label}" style="width:100%;height:100%;object-fit:cover;border-radius:9999px;" />`
+    safeImageUrl
+      ? `<img src="${escapeHtml(safeImageUrl)}" alt="${safeLabel}" style="width:100%;height:100%;object-fit:cover;border-radius:9999px;" />`
       : `<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;border-radius:9999px;background:${theme.fill};color:${theme.ring};font-weight:700;font-size:14px;">${fallback}</div>`;
 
   return L.divIcon({
@@ -120,12 +131,93 @@ export function RealMap({
   points,
   heightClassName = "h-[62svh] min-h-[420px] sm:h-[68vh]",
   zoom = 14,
+  enableClustering = true,
 }: {
   center: { latitude: number; longitude: number };
   points: RealMapPoint[];
   heightClassName?: string;
   zoom?: number;
+  enableClustering?: boolean;
 }) {
+  const markerNodes = points.map((point) => (
+    <Marker key={point.id} position={[point.latitude, point.longitude]} icon={createAvatarMarker(point)}>
+      <Popup autoClose={false} closeOnClick={false} keepInView autoPanPadding={[24, 24]}>
+        <div className="max-h-[58vh] min-w-[240px] max-w-[300px] overflow-y-auto pr-1 sm:min-w-[280px]">
+          {point.imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={point.imageUrl} alt={point.label} className="mb-3 h-32 w-full rounded-xl object-cover" />
+          ) : null}
+
+          {point.highlightLabel ? (
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{point.highlightLabel}</p>
+          ) : null}
+
+          <p className="font-semibold text-slate-950">{point.label}</p>
+          <p className="mt-1 text-sm text-slate-600">{point.subtitle}</p>
+
+          {point.detailTitle ? (
+            <div className="mt-3 rounded-2xl bg-neutral-50 p-3">
+              <p className="text-sm font-semibold text-slate-950">{point.detailTitle}</p>
+              {point.detailDate ? <p className="mt-1 text-xs text-slate-500">{point.detailDate}</p> : null}
+              {point.detailPrice ? <p className="mt-1 text-xs font-medium text-slate-700">{point.detailPrice}</p> : null}
+            </div>
+          ) : null}
+
+          {point.eventPreviews?.length ? (
+            <div className="mt-3 flex gap-3 overflow-x-auto pb-1">
+              {point.eventPreviews.map((event) => (
+                <Link key={event.id} href={getEventPath(event)} className="min-w-[180px] rounded-2xl border border-neutral-200 bg-white p-2.5">
+                  {event.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={event.imageUrl} alt={event.title} className="mb-2 h-20 w-full rounded-xl object-cover" />
+                  ) : null}
+                  <p className="line-clamp-1 text-sm font-semibold text-slate-950">{event.title}</p>
+                  <p className="mt-1 text-xs text-slate-500">{event.dateLabel}</p>
+                  <p className="mt-1 text-xs font-medium text-slate-700">{event.priceLabel}</p>
+                </Link>
+              ))}
+            </div>
+          ) : null}
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            {point.href ? (
+              <Link href={point.href} className="inline-flex rounded-xl bg-sky-500 px-3 py-2 text-sm font-medium text-white">
+                {point.ctaLabel ?? "Abrir"}
+              </Link>
+            ) : null}
+
+            {point.profileHref ? (
+              <Link href={point.profileHref} className="inline-flex rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-slate-700">
+                Ver perfil
+              </Link>
+            ) : null}
+
+            {point.followUserId ? (
+              <form action={followUserAction}>
+                <input type="hidden" name="targetUserId" value={point.followUserId} />
+                <input type="hidden" name="redirectPath" value={point.followRedirectPath ?? "/map"} />
+                <button type="submit" className="inline-flex rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-slate-700">
+                  Seguir local
+                </button>
+              </form>
+            ) : null}
+
+            {point.directionsUrl ? (
+              <Link
+                href={point.directionsUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-slate-700"
+              >
+                Cómo llegar
+              </Link>
+            ) : null}
+          </div>
+        </div>
+      </Popup>
+    </Marker>
+  ));
+
   return (
     <div className={`overflow-hidden rounded-[24px] border border-neutral-200 bg-white ${heightClassName}`}>
       <MapContainer center={[center.latitude, center.longitude]} zoom={zoom} scrollWheelZoom className="h-full w-full">
@@ -136,88 +228,7 @@ export function RealMap({
 
         <RecenterControl />
 
-        <MarkerClusterGroup chunkedLoading>
-          {points.map((point) => (
-            <Marker key={point.id} position={[point.latitude, point.longitude]} icon={createAvatarMarker(point)}>
-              <Popup>
-                <div className="max-h-[58vh] min-w-[240px] max-w-[300px] overflow-y-auto pr-1 sm:min-w-[280px]">
-                  {point.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={point.imageUrl} alt={point.label} className="mb-3 h-32 w-full rounded-xl object-cover" />
-                  ) : null}
-
-                  {point.highlightLabel ? (
-                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-                      {point.highlightLabel}
-                    </p>
-                  ) : null}
-
-                  <p className="font-semibold text-slate-950">{point.label}</p>
-                  <p className="mt-1 text-sm text-slate-600">{point.subtitle}</p>
-
-                  {point.detailTitle ? (
-                    <div className="mt-3 rounded-2xl bg-neutral-50 p-3">
-                      <p className="text-sm font-semibold text-slate-950">{point.detailTitle}</p>
-                      {point.detailDate ? <p className="mt-1 text-xs text-slate-500">{point.detailDate}</p> : null}
-                      {point.detailPrice ? <p className="mt-1 text-xs font-medium text-slate-700">{point.detailPrice}</p> : null}
-                    </div>
-                  ) : null}
-
-                  {point.eventPreviews?.length ? (
-                    <div className="mt-3 flex gap-3 overflow-x-auto pb-1">
-                      {point.eventPreviews.map((event) => (
-                        <Link key={event.id} href={getEventPath(event)} className="min-w-[180px] rounded-2xl border border-neutral-200 bg-white p-2.5">
-                          {event.imageUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={event.imageUrl} alt={event.title} className="mb-2 h-20 w-full rounded-xl object-cover" />
-                          ) : null}
-                          <p className="line-clamp-1 text-sm font-semibold text-slate-950">{event.title}</p>
-                          <p className="mt-1 text-xs text-slate-500">{event.dateLabel}</p>
-                          <p className="mt-1 text-xs font-medium text-slate-700">{event.priceLabel}</p>
-                        </Link>
-                      ))}
-                    </div>
-                  ) : null}
-
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {point.href ? (
-                      <Link href={point.href} className="inline-flex rounded-xl bg-sky-500 px-3 py-2 text-sm font-medium text-white">
-                        {point.ctaLabel ?? "Abrir"}
-                      </Link>
-                    ) : null}
-
-                    {point.profileHref ? (
-                      <Link href={point.profileHref} className="inline-flex rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-slate-700">
-                        Ver perfil
-                      </Link>
-                    ) : null}
-
-                    {point.followUserId ? (
-                      <form action={followUserAction}>
-                        <input type="hidden" name="targetUserId" value={point.followUserId} />
-                        <input type="hidden" name="redirectPath" value={point.followRedirectPath ?? "/map"} />
-                        <button type="submit" className="inline-flex rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-slate-700">
-                          Seguir local
-                        </button>
-                      </form>
-                    ) : null}
-
-                    {point.directionsUrl ? (
-                      <Link
-                        href={point.directionsUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-slate-700"
-                      >
-                        Cómo llegar
-                      </Link>
-                    ) : null}
-                  </div>
-                </div>
-              </Popup>
-            </Marker>
-          ))}
-        </MarkerClusterGroup>
+        {enableClustering && points.length > 1 ? <MarkerClusterGroup chunkedLoading>{markerNodes}</MarkerClusterGroup> : markerNodes}
       </MapContainer>
     </div>
   );

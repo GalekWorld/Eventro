@@ -1,10 +1,9 @@
 import { randomBytes } from "crypto";
-import { PaymentCheckoutStatus, PaymentProvider, Prisma, TicketAccessAction } from "@prisma/client";
+import { PaymentCheckoutStatus, PaymentProvider, Prisma, TicketAccessAction, UserRole } from "@prisma/client";
 import { db } from "@/lib/db";
 import { slugify } from "@/lib/slug";
 import { DEFAULT_PAYMENT_CURRENCY, calculateCheckoutAmounts } from "@/lib/payments";
-import { USER_ROLE, type UserRole } from "@/lib/roles";
-import type { CreateEventInput, EventFilters } from "@/features/events/event.schemas";
+import type { CreateEventInput, EventFilters, UpdateEventBasicsInput } from "@/features/events/event.schemas";
 
 function getEventSummary(ticketTypes: CreateEventInput["ticketTypes"]) {
   const cheapestPaid = ticketTypes
@@ -22,6 +21,68 @@ function getEventSummary(ticketTypes: CreateEventInput["ticketTypes"]) {
 
 function buildTicketCode() {
   return `EVT-${randomBytes(8).toString("hex").toUpperCase()}`;
+}
+
+async function userHasConfirmedEventAccess({
+  eventId,
+  userId,
+}: {
+  eventId: string;
+  userId: string;
+}) {
+  const [confirmedPurchase, confirmedTicket] = await Promise.all([
+    db.ticketPurchase.findFirst({
+      where: {
+        eventId,
+        buyerId: userId,
+        status: "CONFIRMED",
+      },
+      select: { id: true },
+    }),
+    db.eventTicket.findFirst({
+      where: {
+        eventId,
+        buyerId: userId,
+        purchase: {
+          status: "CONFIRMED",
+        },
+        status: {
+          in: ["ACTIVE", "USED"],
+        },
+      },
+      select: { id: true },
+    }),
+  ]);
+
+  return Boolean(confirmedPurchase || confirmedTicket);
+}
+
+export async function canUserAccessEventChat({
+  eventId,
+  userId,
+  role,
+  ownerId,
+}: {
+  eventId: string;
+  userId: string;
+  role: UserRole;
+  ownerId?: string;
+}) {
+  if (role === UserRole.ADMIN) return true;
+
+  const effectiveOwnerId =
+    ownerId ??
+    (
+      await db.event.findUnique({
+        where: { id: eventId },
+        select: { ownerId: true },
+      })
+    )?.ownerId;
+
+  if (!effectiveOwnerId) return false;
+  if (effectiveOwnerId === userId) return true;
+
+  return userHasConfirmedEventAccess({ eventId, userId });
 }
 
 async function generateUniqueEventSlug(title: string) {
@@ -81,6 +142,8 @@ export async function listPublishedEvents(filters: EventFilters) {
       title: true,
       description: true,
       imageUrl: true,
+      hasReservations: true,
+      reservationInfo: true,
       location: true,
       city: true,
       latitude: true,
@@ -91,15 +154,16 @@ export async function listPublishedEvents(filters: EventFilters) {
       ticketCapacity: true,
       ticketsSold: true,
       ticketTypes: {
-        where: { isVisible: true },
         orderBy: { sortOrder: "asc" },
         select: {
           id: true,
           name: true,
+          description: true,
           price: true,
           capacity: true,
           includedDrinks: true,
           soldCount: true,
+          isVisible: true,
         },
       },
     },
@@ -191,7 +255,12 @@ export async function getEventChatBySlugForUser({
   if (!event) return null;
 
   const accessWindowEndsAt = new Date((event.endDate ?? event.date).getTime() + 12 * 60 * 60 * 1000);
-  const hasAccess = role === USER_ROLE.ADMIN || event.ownerId === userId || event.chatParticipants.length > 0;
+  const hasAccess = await canUserAccessEventChat({
+    eventId: event.id,
+    userId,
+    role,
+    ownerId: event.ownerId,
+  });
 
   if (!hasAccess) {
     return null;
@@ -310,7 +379,7 @@ export async function getVenueEventById(eventId: string, ownerId: string) {
 }
 
 export async function listScannerEvents(scannerUserId: string, role: UserRole) {
-  if (role === USER_ROLE.ADMIN) {
+  if (role === UserRole.ADMIN) {
     return db.event.findMany({
       where: {
         published: true,
@@ -394,7 +463,7 @@ export async function getScannableEventById({
   });
 
   if (!event) return null;
-  if (role === USER_ROLE.ADMIN) return event;
+  if (role === UserRole.ADMIN) return event;
 
   const assignment = await db.venueDoorStaff.findFirst({
     where: {
@@ -418,6 +487,8 @@ export async function createEventForLocal(ownerId: string, input: CreateEventInp
       slug: await generateUniqueEventSlug(input.title),
       description: input.description,
       imageUrl: input.imageUrl || null,
+      hasReservations: input.hasReservations,
+      reservationInfo: input.reservationInfo?.trim() || null,
       location: input.location,
       city: input.city,
       latitude: input.latitude ?? null,
@@ -444,18 +515,51 @@ export async function createEventForLocal(ownerId: string, input: CreateEventInp
   });
 }
 
+export async function updateEventBasicsForLocal({
+  eventId,
+  ownerId,
+  input,
+}: {
+  eventId: string;
+  ownerId: string;
+  input: UpdateEventBasicsInput;
+}) {
+  return db.event.updateMany({
+    where: {
+      id: eventId,
+      ownerId,
+    },
+    data: {
+      title: input.title,
+      description: input.description,
+      imageUrl: input.imageUrl || undefined,
+      hasReservations: input.hasReservations,
+      reservationInfo: input.reservationInfo?.trim() || null,
+      location: input.location,
+      city: input.city,
+      latitude: input.latitude ?? null,
+      longitude: input.longitude ?? null,
+      date: new Date(input.date),
+      endDate: input.endDate ? new Date(input.endDate) : null,
+      published: input.published,
+    },
+  });
+}
+
 export async function purchaseTicketsForEvent({
   buyerId,
   eventId,
   ticketTypeId,
   quantity,
   checkoutId,
+  allowOwnerComplimentary = false,
 }: {
   buyerId: string;
   eventId: string;
   ticketTypeId: string;
   quantity: number;
   checkoutId?: string;
+  allowOwnerComplimentary?: boolean;
 }) {
   return db.$transaction(async (tx) => {
     const ticketType = await tx.eventTicketType.findFirst({
@@ -483,7 +587,7 @@ export async function purchaseTicketsForEvent({
       throw new Error("Ese tipo de entrada ya no existe.");
     }
 
-    if (ticketType.event.ownerId === buyerId) {
+    if (ticketType.event.ownerId === buyerId && !allowOwnerComplimentary) {
       throw new Error("No puedes comprar entradas para tu propio evento.");
     }
 
@@ -496,8 +600,11 @@ export async function purchaseTicketsForEvent({
       throw new Error("No quedan suficientes entradas disponibles.");
     }
 
-    const totalAmount =
-      ticketType.price == null ? null : new Prisma.Decimal(ticketType.price).mul(new Prisma.Decimal(quantity));
+    const totalAmount = allowOwnerComplimentary
+      ? new Prisma.Decimal(0)
+      : ticketType.price == null
+        ? null
+        : new Prisma.Decimal(ticketType.price).mul(new Prisma.Decimal(quantity));
 
     const purchase = await tx.ticketPurchase.create({
       data: {
@@ -607,9 +714,7 @@ export async function prepareTicketCheckout({
     throw new Error("Ese tipo de entrada ya no existe.");
   }
 
-  if (ticketType.event.ownerId === buyerId) {
-    throw new Error("No puedes comprar entradas para tu propio evento.");
-  }
+  const ownerComplimentary = ticketType.event.ownerId === buyerId;
 
   if (!isTicketTypeOnSale(ticketType)) {
     throw new Error("Esta entrada no está disponible ahora mismo.");
@@ -620,14 +725,23 @@ export async function prepareTicketCheckout({
     throw new Error("No quedan suficientes entradas disponibles.");
   }
 
-  const unitAmount = ticketType.price == null ? 0 : Number(ticketType.price) * 100;
-  const amounts = calculateCheckoutAmounts(unitAmount, quantity);
+  const unitAmount = ownerComplimentary ? 0 : ticketType.price == null ? 0 : Number(ticketType.price) * 100;
+  const amounts = ownerComplimentary
+    ? {
+        baseAmount: 0,
+        revenueShareAmount: 0,
+        managementFeeAmount: 0,
+        applicationFeeAmount: 0,
+        totalAmount: 0,
+      }
+    : calculateCheckoutAmounts(unitAmount, quantity);
 
   return {
     ticketType,
     event: ticketType.event,
     quantity,
     currency: DEFAULT_PAYMENT_CURRENCY,
+    ownerComplimentary,
     ...amounts,
   };
 }
@@ -943,7 +1057,7 @@ export async function validateVenueTicket({
       throw new Error("No existe ninguna entrada con ese código.");
     }
 
-    if (scanner.role !== USER_ROLE.ADMIN) {
+    if (scanner.role !== UserRole.ADMIN) {
       const assignment = await tx.venueDoorStaff.findFirst({
         where: {
           venueId: ticket.event.ownerId,
@@ -1061,7 +1175,7 @@ export async function inspectVenueTicketByCode({
     throw new Error("No existe ninguna entrada con ese codigo.");
   }
 
-  if (scanner.role !== USER_ROLE.ADMIN) {
+  if (scanner.role !== UserRole.ADMIN) {
     const assignment = await db.venueDoorStaff.findFirst({
       where: {
         venueId: ticket.event.ownerId,
@@ -1133,7 +1247,7 @@ export async function redeemTicketDrink({
       throw new Error("No existe ninguna entrada con ese identificador.");
     }
 
-    if (scanner.role !== USER_ROLE.ADMIN) {
+    if (scanner.role !== UserRole.ADMIN) {
       const assignment = await tx.venueDoorStaff.findFirst({
         where: {
           venueId: ticket.event.ownerId,

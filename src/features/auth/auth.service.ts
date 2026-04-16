@@ -1,8 +1,8 @@
 import bcrypt from "bcryptjs";
+import { UserRole } from "@prisma/client";
 import type { LoginInput, RegisterInput } from "@/features/auth/auth.schemas";
 import { createSession, setSessionCookie } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { USER_ROLE } from "@/lib/roles";
 import { normalizeUsername } from "@/lib/username";
 
 export async function registerUser(input: RegisterInput) {
@@ -25,9 +25,9 @@ export async function registerUser(input: RegisterInput) {
     data: {
       email,
       passwordHash,
-      name: input.displayName,
+      name: input.displayName?.trim() || null,
       username,
-      role: USER_ROLE.USER,
+      role: UserRole.USER,
     },
   });
 

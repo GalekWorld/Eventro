@@ -14,16 +14,13 @@ export function EventShareButton({ title, path }: EventShareButtonProps) {
 
   async function handleShare() {
     try {
-      if (navigator.share) {
-        await navigator.share({ title, url });
-        return;
-      }
-
       await navigator.clipboard.writeText(url);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1800);
     } catch {
-      // ignore
+      if (typeof window !== "undefined") {
+        window.prompt(`Copia el enlace de ${title}`, url);
+      }
     }
   }
 

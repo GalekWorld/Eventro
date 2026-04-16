@@ -22,9 +22,14 @@ export default async function LocalEventTicketsPage({ params }: { params: Promis
             <h1 className="app-screen-title">Control de entradas</h1>
             <p className="mt-2 app-screen-subtitle">{event.title}</p>
           </div>
-          <Link href="/local/dashboard" className="app-button-secondary">
-            Volver al panel
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link href={`/local/events/${event.id}/edit`} className="app-button-secondary">
+              Editar evento
+            </Link>
+            <Link href="/local/dashboard" className="app-button-secondary">
+              Volver al panel
+            </Link>
+          </div>
         </div>
       </section>
 

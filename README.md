@@ -265,24 +265,18 @@ La opción recomendada para este proyecto es **Railway**, porque la app usa:
 - WebSocket con `ws`
 - base de datos externa
 
-Para facilitar el despliegue, el repositorio incluye:
-
-- `Dockerfile`
-- `.dockerignore`
-
 Pasos recomendados en Railway:
 
 1. Crea un proyecto nuevo en Railway
 2. Conecta este repositorio o súbelo desde GitHub
-3. Railway detectará el `Dockerfile`
-4. Añade las variables de entorno del archivo `.env`
-5. Configura una base de datos PostgreSQL
-6. Asegúrate de poner:
+3. Añade las variables de entorno del archivo `.env`
+4. Configura una base de datos PostgreSQL
+5. Asegúrate de poner:
    - `DATABASE_URL`
    - `JWT_SECRET`
    - `APP_URL`
    - `NEXT_PUBLIC_APP_URL`
-7. Despliega
+6. Despliega
 
 Una vez desplegado, la app arrancará con:
 

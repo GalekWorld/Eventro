@@ -54,7 +54,7 @@ export default async function GroupsPage() {
 
       <section className="app-card p-5">
         <h1 className="app-screen-title">Grupos</h1>
-        <p className="mt-2 app-screen-subtitle">Unete a grupos y habla con gente que comparte tus intereses.</p>
+        <p className="mt-2 app-screen-subtitle">Únete a grupos y habla con gente que comparte tus intereses.</p>
       </section>
 
       {currentUser ? <GroupForm /> : null}
@@ -88,7 +88,7 @@ export default async function GroupsPage() {
                   <p className="mt-2 text-sm text-slate-500">
                     Creado por @{group.owner.username ?? "owner"} · {group._count.memberships} miembros · {group._count.messages} mensajes
                   </p>
-                <p className="mt-3 text-sm leading-7 text-slate-600">{group.description ?? "Este grupo todavía no tiene descripción."}</p>
+                  <p className="mt-3 text-sm leading-7 text-slate-600">{group.description ?? "Este grupo todavía no tiene descripción."}</p>
                 </div>
 
                 {currentUser ? (
@@ -99,7 +99,7 @@ export default async function GroupsPage() {
                           <input type="hidden" name="inviteId" value={invite.id} />
                           <input type="hidden" name="decision" value="accept" />
                           <button className="app-button-primary" type="submit">
-                            Aceptar invitacion
+                            Aceptar invitación
                           </button>
                         </form>
                         <form action={respondGroupInviteAction}>

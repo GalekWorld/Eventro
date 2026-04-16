@@ -6,7 +6,7 @@ import { ServiceWorkerRegister } from "@/components/service-worker-register";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "EVENTRO",
+  title: "Eventro",
   description: "Descubre eventos y gestiona tu local desde una experiencia mobile-first.",
   manifest: "/manifest.webmanifest",
   icons: {
