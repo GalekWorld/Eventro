@@ -229,6 +229,7 @@ npm run prisma:seed
 ### Base
 
 - `DATABASE_URL`
+- `DIRECT_URL`
 - `JWT_SECRET`
 - `APP_URL`
 - `NEXT_PUBLIC_APP_URL`
@@ -273,6 +274,7 @@ Pasos recomendados en Railway:
 4. Configura una base de datos PostgreSQL
 5. Asegúrate de poner:
    - `DATABASE_URL`
+   - `DIRECT_URL`
    - `JWT_SECRET`
    - `APP_URL`
    - `NEXT_PUBLIC_APP_URL`
