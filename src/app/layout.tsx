@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { AppShell } from "@/components/app-shell";
-import { ServiceWorkerRegister } from "@/components/service-worker-register";
-
-export const dynamic = "force-dynamic";
+import { ClientShellEffects } from "@/components/client-shell-effects";
 
 export const metadata: Metadata = {
   title: "Eventro",
@@ -27,7 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="es" suppressHydrationWarning>
       <body className="antialiased">
-        <ServiceWorkerRegister />
+        <ClientShellEffects />
         <script
           dangerouslySetInnerHTML={{
             __html: `

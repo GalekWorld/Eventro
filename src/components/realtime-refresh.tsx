@@ -33,6 +33,13 @@ export function RealtimeRefresh({
     let fallbackInterval: number | null = null;
     let closedByApp = false;
 
+    const clearQueuedRefresh = () => {
+      if (refreshTimeout != null) {
+        window.clearTimeout(refreshTimeout);
+        refreshTimeout = null;
+      }
+    };
+
     const clearFallback = () => {
       if (fallbackInterval != null) {
         window.clearInterval(fallbackInterval);
@@ -40,25 +47,39 @@ export function RealtimeRefresh({
       }
     };
 
-    const startFallback = () => {
-      if (fallbackInterval != null) return;
-
-      fallbackInterval = window.setInterval(() => {
-        router.refresh();
-      }, fallbackIntervalMs);
-    };
-
     const queueRefresh = () => {
-      if (refreshTimeout != null) {
-        window.clearTimeout(refreshTimeout);
+      if (document.hidden) {
+        return;
       }
 
+      clearQueuedRefresh();
       refreshTimeout = window.setTimeout(() => {
-        router.refresh();
+        if (!document.hidden && navigator.onLine) {
+          router.refresh();
+        }
       }, 180);
     };
 
+    const startFallback = () => {
+      if (fallbackInterval != null || document.hidden) return;
+
+      fallbackInterval = window.setInterval(() => {
+        if (!document.hidden && navigator.onLine) {
+          router.refresh();
+        }
+      }, fallbackIntervalMs);
+    };
+
+    const disconnect = () => {
+      socket?.close();
+      socket = null;
+      clearFallback();
+      clearQueuedRefresh();
+    };
+
     const connect = () => {
+      if (document.hidden) return;
+
       socket = new WebSocket(getWebSocketUrl(topics));
 
       socket.addEventListener("open", () => {
@@ -80,17 +101,24 @@ export function RealtimeRefresh({
       });
     };
 
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        disconnect();
+        return;
+      }
+
+      connect();
+    };
+
     connect();
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("online", handleVisibilityChange);
 
     return () => {
       closedByApp = true;
-
-      if (refreshTimeout != null) {
-        window.clearTimeout(refreshTimeout);
-      }
-
-      clearFallback();
-      socket?.close();
+      disconnect();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("online", handleVisibilityChange);
     };
   }, [fallbackIntervalMs, router, topics, topicsKey]);
 

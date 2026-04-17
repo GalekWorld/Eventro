@@ -34,11 +34,21 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
       },
       take: 12,
       orderBy: query ? [{ username: "asc" }, { createdAt: "desc" }] : { createdAt: "desc" },
-      include: {
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        city: true,
+        isVerified: true,
+        role: true,
+        avatarUrl: true,
         followers: currentUser
           ? {
               where: {
                 followerId: currentUser.id,
+              },
+              select: {
+                id: true,
               },
             }
           : false,
@@ -174,7 +184,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
                 <div className="flex items-start gap-3">
                   {event.imageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={event.imageUrl} alt={event.title} className="h-16 w-16 rounded-2xl object-cover" />
+                    <img src={event.imageUrl} alt={event.title} className="h-16 w-16 rounded-2xl object-cover" loading="lazy" decoding="async" />
                   ) : (
                     <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-neutral-100 text-xs font-semibold text-slate-400">
                       EVENTO

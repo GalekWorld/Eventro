@@ -20,7 +20,7 @@ export function UserAvatar({
     <div className={`overflow-hidden rounded-full bg-white ${className}`}>
       {user.avatarUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={user.avatarUrl} alt={`Avatar de @${user.username ?? "usuario"}`} className="h-full w-full object-cover" />
+        <img src={user.avatarUrl} alt={`Avatar de @${user.username ?? "usuario"}`} className="h-full w-full object-cover" loading="lazy" decoding="async" />
       ) : (
         <div className={`flex h-full w-full items-center justify-center font-semibold text-slate-900 ${textClassName}`}>
           {getAvatarFallback(user)}

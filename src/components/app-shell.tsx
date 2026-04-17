@@ -1,4 +1,4 @@
-﻿import type { ReactNode } from "react";
+import type { ReactNode } from "react";
 import Link from "next/link";
 import {
   Bell,
@@ -19,7 +19,7 @@ import { LogoutButton } from "@/components/logout-button";
 import { MobileNav } from "@/components/mobile-nav";
 import { db } from "@/lib/db";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { BrowserNotificationListener } from "@/components/browser-notification-listener";
+import { ClientShellEffects } from "@/components/client-shell-effects";
 
 const desktopBaseNav = [
   { href: "/dashboard", label: "Inicio", icon: Compass },
@@ -37,6 +37,14 @@ export async function AppShell({ children }: { children: ReactNode }) {
   try {
     user = await getSessionUser();
   } catch (error) {
+    if (
+      error instanceof Error &&
+      ((typeof (error as Error & { digest?: string }).digest === "string" && (error as Error & { digest?: string }).digest === "DYNAMIC_SERVER_USAGE") ||
+        error.message.includes("Dynamic server usage"))
+    ) {
+      throw error;
+    }
+
     console.error("APP_SHELL_USER_ERROR", error);
     user = null;
   }
@@ -65,7 +73,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-app-shell text-slate-900">
-      {user ? <BrowserNotificationListener userId={user.id} /> : null}
+      <ClientShellEffects userId={user?.id} withServiceWorker={false} />
       <div className="mx-auto flex min-h-screen w-full max-w-[1180px] gap-4 px-0 sm:px-4 sm:py-4 xl:gap-6">
         <aside className="sticky top-4 hidden h-[calc(100vh-2rem)] w-72 shrink-0 flex-col justify-between self-start rounded-[28px] border border-neutral-200 bg-white p-5 shadow-[0_10px_35px_rgba(15,23,42,0.06)] xl:flex">
           <div className="space-y-6">
@@ -157,4 +165,3 @@ export async function AppShell({ children }: { children: ReactNode }) {
     </div>
   );
 }
-

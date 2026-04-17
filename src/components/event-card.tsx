@@ -35,7 +35,7 @@ export function EventCard({ event }: { event: EventCardData }) {
       <div className="aspect-[4/3] bg-neutral-100">
         {event.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={event.imageUrl} alt={event.title} className="h-full w-full object-cover" loading="lazy" />
+          <img src={event.imageUrl} alt={event.title} className="h-full w-full object-cover" loading="lazy" decoding="async" />
         ) : null}
       </div>
 

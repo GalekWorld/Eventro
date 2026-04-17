@@ -3,8 +3,23 @@ import { deletePublicFile } from "@/lib/upload";
 
 const TEMPORARY_POST_RETENTION_HOURS = 72;
 const TEMPORARY_POST_LIMIT = 100;
+const TEMPORARY_POST_PURGE_INTERVAL_MS = 5 * 60 * 1000;
+
+const temporaryPostMaintenanceState = globalThis as typeof globalThis & {
+  __eventroTemporaryPostPurgeAt?: number;
+};
 
 export async function purgeTemporaryPosts() {
+  const now = Date.now();
+  if (
+    temporaryPostMaintenanceState.__eventroTemporaryPostPurgeAt &&
+    now - temporaryPostMaintenanceState.__eventroTemporaryPostPurgeAt < TEMPORARY_POST_PURGE_INTERVAL_MS
+  ) {
+    return;
+  }
+
+  temporaryPostMaintenanceState.__eventroTemporaryPostPurgeAt = now;
+
   const temporaryPostsCount = await db.post.count({
     where: {
       showOnProfile: false,

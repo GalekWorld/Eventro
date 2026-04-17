@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { Loader2, LocateFixed, MapPinned, Search } from "lucide-react";
 
@@ -44,6 +44,7 @@ export function PreciseLocationPicker({
   const [searchText, setSearchText] = useState(searchQuery ?? addressDefault ?? "");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [selectedAddress, setSelectedAddress] = useState(addressDefault ?? "");
+  const lastCoordinatesRef = useRef<{ latitude: string; longitude: string } | null>(null);
 
   useEffect(() => {
     setLatitude(latitudeDefault?.toString() ?? "");
@@ -61,11 +62,26 @@ export function PreciseLocationPicker({
     let cancelled = false;
     setStatus("Buscando tu ubicación actual...");
 
+    const updateCoordinates = (nextLatitude: string, nextLongitude: string) => {
+      const previous = lastCoordinatesRef.current;
+      if (previous?.latitude === nextLatitude && previous.longitude === nextLongitude) {
+        return;
+      }
+
+      lastCoordinatesRef.current = {
+        latitude: nextLatitude,
+        longitude: nextLongitude,
+      };
+      setLatitude(nextLatitude);
+      setLongitude(nextLongitude);
+    };
+
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
         if (cancelled) return;
-        setLatitude(position.coords.latitude.toFixed(6));
-        setLongitude(position.coords.longitude.toFixed(6));
+        if (typeof document !== "undefined" && document.hidden) return;
+
+        updateCoordinates(position.coords.latitude.toFixed(6), position.coords.longitude.toFixed(6));
         setStatus("Tu ubicación se está actualizando automáticamente.");
       },
       () => {
@@ -119,8 +135,14 @@ export function PreciseLocationPicker({
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setLatitude(position.coords.latitude.toFixed(6));
-        setLongitude(position.coords.longitude.toFixed(6));
+        const nextLatitude = position.coords.latitude.toFixed(6);
+        const nextLongitude = position.coords.longitude.toFixed(6);
+        lastCoordinatesRef.current = {
+          latitude: nextLatitude,
+          longitude: nextLongitude,
+        };
+        setLatitude(nextLatitude);
+        setLongitude(nextLongitude);
         if (mode === "venue" && !selectedAddress) {
           setSelectedAddress("Ubicación marcada desde tu posición actual");
         }
@@ -180,8 +202,14 @@ export function PreciseLocationPicker({
   }
 
   function selectSearchResult(result: SearchResult) {
-    setLatitude(Number(result.lat).toFixed(6));
-    setLongitude(Number(result.lon).toFixed(6));
+    const nextLatitude = Number(result.lat).toFixed(6);
+    const nextLongitude = Number(result.lon).toFixed(6);
+    lastCoordinatesRef.current = {
+      latitude: nextLatitude,
+      longitude: nextLongitude,
+    };
+    setLatitude(nextLatitude);
+    setLongitude(nextLongitude);
     setSelectedAddress(result.display_name);
     setSearchText(result.display_name);
     setResults([]);
@@ -220,58 +248,56 @@ export function PreciseLocationPicker({
           </div>
         </div>
       ) : (
-        <>
-          <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
-            <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-slate-700 shadow-sm">
-                <MapPinned className="h-5 w-5" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-slate-950">Dirección del local</p>
-                <p className="mt-1 text-sm text-slate-500">
-                  Busca la calle exacta del local y confirma el punto en el mapa para asegurarte de que coincide con el sitio correcto.
-                </p>
-              </div>
+        <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-slate-700 shadow-sm">
+              <MapPinned className="h-5 w-5" />
             </div>
-
-            <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
-              <input
-                className="app-input"
-                placeholder="Busca calle, número, ciudad..."
-                value={searchText}
-                onChange={(event) => setSearchText(event.target.value)}
-              />
-              <button type="button" className="app-button-secondary" onClick={searchAddress} disabled={searching}>
-                {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                {searching ? "Buscando" : "Buscar"}
-              </button>
-              <button type="button" className="app-button-secondary" onClick={useCurrentLocation}>
-                Usar mapa actual
-              </button>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-slate-950">Dirección del local</p>
+              <p className="mt-1 text-sm text-slate-500">
+                Busca la calle exacta del local y confirma el punto en el mapa para asegurarte de que coincide con el sitio correcto.
+              </p>
             </div>
-
-            {results.length > 0 ? (
-              <div className="mt-3 grid gap-2">
-                {results.map((result) => (
-                  <button
-                    key={`${result.lat}-${result.lon}-${result.display_name}`}
-                    type="button"
-                    onClick={() => selectSearchResult(result)}
-                    className="rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-neutral-50"
-                  >
-                    {result.display_name}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-
-            {selectedAddress ? (
-              <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-                Dirección seleccionada: {selectedAddress}
-              </div>
-            ) : null}
           </div>
-        </>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
+            <input
+              className="app-input"
+              placeholder="Busca calle, número, ciudad..."
+              value={searchText}
+              onChange={(event) => setSearchText(event.target.value)}
+            />
+            <button type="button" className="app-button-secondary" onClick={searchAddress} disabled={searching}>
+              {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+              {searching ? "Buscando" : "Buscar"}
+            </button>
+            <button type="button" className="app-button-secondary" onClick={useCurrentLocation}>
+              Usar mapa actual
+            </button>
+          </div>
+
+          {results.length > 0 ? (
+            <div className="mt-3 grid gap-2">
+              {results.map((result) => (
+                <button
+                  key={`${result.lat}-${result.lon}-${result.display_name}`}
+                  type="button"
+                  onClick={() => selectSearchResult(result)}
+                  className="rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-left text-sm text-slate-700 transition hover:bg-neutral-50"
+                >
+                  {result.display_name}
+                </button>
+              ))}
+            </div>
+          ) : null}
+
+          {selectedAddress ? (
+            <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+              Dirección seleccionada: {selectedAddress}
+            </div>
+          ) : null}
+        </div>
       )}
 
       {helperText ? <p className="text-xs text-slate-500">{helperText}</p> : null}

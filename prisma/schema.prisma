@@ -245,6 +245,9 @@ model Event {
   ticketAccessLogs EventTicketAccessLog[]
   doorStaff      VenueDoorStaff[]             @relation("VenueDoorStaffEvent")
   views          EventView[]
+
+  @@index([published, date])
+  @@index([published, city, date])
 }
 
 model EventTicketType {
@@ -474,6 +477,7 @@ model Post {
   reports     UserReport[]  @relation("ReportPost")
 
   @@index([authorId, createdAt])
+  @@index([hiddenAt, createdAt])
 }
 
 model PostLike {
@@ -532,6 +536,7 @@ model Story {
   author      User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
   @@index([authorId, expiresAt])
+  @@index([expiresAt, createdAt])
 }
 
 model Follow {
@@ -544,6 +549,7 @@ model Follow {
   following    User     @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
 
   @@unique([followerId, followingId])
+  @@index([followingId, createdAt])
 }
 
 model UserBlock {
@@ -683,6 +689,7 @@ model Notification {
   actor        User?             @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
 
   @@index([recipientId, createdAt])
+  @@index([recipientId, readAt, createdAt])
 }
 
 model UserReport {
