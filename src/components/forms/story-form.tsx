@@ -15,7 +15,7 @@ export function StoryForm() {
   const durationLabel = useMemo(() => `${durationSec}s`, [durationSec]);
 
   return (
-    <form action={formAction} className="app-card rounded-[18px] p-4">
+    <form action={formAction} encType="multipart/form-data" className="app-card rounded-[18px] p-4">
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm font-semibold text-slate-950">Subir historia</p>
         <span className="text-xs text-slate-400">Máx. 15 s</span>

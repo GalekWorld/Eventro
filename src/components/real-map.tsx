@@ -1,7 +1,7 @@
 "use client";
 
 import type { MouseEvent as ReactMouseEvent, TouchEvent as ReactTouchEvent } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import L from "leaflet";
 import { LocateFixed } from "lucide-react";
@@ -137,6 +137,37 @@ function RecenterControl() {
   );
 }
 
+function PopupContent({
+  children,
+  stopPopupPropagation,
+}: {
+  children: React.ReactNode;
+  stopPopupPropagation: (event: ReactMouseEvent<HTMLDivElement> | ReactTouchEvent<HTMLDivElement>) => void;
+}) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    L.DomEvent.disableClickPropagation(container);
+    L.DomEvent.disableScrollPropagation(container);
+  }, []);
+
+  return (
+    <div
+      ref={containerRef}
+      className="max-h-[58vh] min-w-[240px] max-w-[300px] overflow-y-auto pr-1 sm:min-w-[280px]"
+      onClickCapture={stopPopupPropagation}
+      onMouseDownCapture={stopPopupPropagation}
+      onTouchStartCapture={stopPopupPropagation}
+      onTouchEndCapture={stopPopupPropagation}
+    >
+      {children}
+    </div>
+  );
+}
+
 export function RealMap({
   center,
   points,
@@ -159,13 +190,7 @@ export function RealMap({
       points.map((point) => (
         <Marker key={point.id} position={[point.latitude, point.longitude]} icon={createAvatarMarker(point)}>
           <Popup autoClose={false} closeOnClick={false} keepInView autoPanPadding={[24, 24]}>
-            <div
-              className="max-h-[58vh] min-w-[240px] max-w-[300px] overflow-y-auto pr-1 sm:min-w-[280px]"
-              onClickCapture={stopPopupPropagation}
-              onMouseDownCapture={stopPopupPropagation}
-              onTouchStartCapture={stopPopupPropagation}
-              onTouchEndCapture={stopPopupPropagation}
-            >
+            <PopupContent stopPopupPropagation={stopPopupPropagation}>
               {point.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={point.imageUrl} alt={point.label} className="mb-3 h-32 w-full rounded-xl object-cover" loading="lazy" decoding="async" />
@@ -238,7 +263,7 @@ export function RealMap({
                   </Link>
                 ) : null}
               </div>
-            </div>
+            </PopupContent>
           </Popup>
         </Marker>
       )),

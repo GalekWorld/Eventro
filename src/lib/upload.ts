@@ -20,7 +20,13 @@ function buildDataUrl(type: string, bytes: Buffer) {
 }
 
 function shouldInlineUpload() {
-  return process.env.VERCEL === "1" || process.env.EVENTRO_INLINE_UPLOADS === "1";
+  return (
+    process.env.EVENTRO_INLINE_UPLOADS === "1" ||
+    process.env.VERCEL === "1" ||
+    process.env.RAILWAY_ENVIRONMENT_NAME != null ||
+    process.env.RAILWAY_PROJECT_ID != null ||
+    process.env.NODE_ENV === "production"
+  );
 }
 
 function sanitizeFolder(folder: string) {

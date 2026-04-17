@@ -31,7 +31,7 @@ export function ProfileForm({
   const [state, formAction] = useActionState(updateProfileAction, initialState);
 
   return (
-    <form action={formAction} className="app-card p-5">
+    <form action={formAction} encType="multipart/form-data" className="app-card p-5">
       <p className="text-sm uppercase tracking-[0.24em] text-slate-400">Editar perfil</p>
       <div className="mt-4 grid gap-3">
         <label className="grid gap-2 text-sm text-slate-600">

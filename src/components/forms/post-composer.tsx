@@ -13,7 +13,7 @@ export function PostComposer() {
   const [fileError, setFileError] = useState("");
 
   return (
-    <form action={formAction} className="app-card rounded-[18px] p-3 sm:p-4">
+    <form action={formAction} encType="multipart/form-data" className="app-card rounded-[18px] p-3 sm:p-4">
       <textarea name="content" className="app-textarea min-h-[96px] w-full text-sm" placeholder="¿Qué te apetece compartir hoy?" />
 
       <input
