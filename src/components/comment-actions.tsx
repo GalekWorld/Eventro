@@ -1,11 +1,8 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import {
-  deletePostCommentAction,
-  toggleCommentLikeAction,
-  updatePostCommentAction,
-} from "@/app/actions/social";
+import { deletePostCommentAction, updatePostCommentAction } from "@/app/actions/social";
+import { CommentLikeButton } from "@/components/comment-like-button";
 import type { ActionState } from "@/lib/http";
 import { SubmitButton } from "@/components/forms/submit-button";
 
@@ -33,13 +30,7 @@ export function CommentActions({
 
   return (
     <div className="mt-2 flex flex-wrap items-center gap-3">
-      <form action={toggleCommentLikeAction}>
-        <input type="hidden" name="commentId" value={commentId} />
-        <input type="hidden" name="redirectPath" value={redirectPath} />
-        <button type="submit" className={`text-xs font-medium ${liked ? "text-rose-500" : "text-slate-500"}`}>
-          {liked ? "Te gusta" : "Me gusta"} · {likeCount}
-        </button>
-      </form>
+      <CommentLikeButton commentId={commentId} redirectPath={redirectPath} initialLiked={liked} initialLikeCount={likeCount} />
 
       {canEdit ? (
         <button type="button" className="text-xs font-medium text-slate-500" onClick={() => setOpen((value) => !value)}>

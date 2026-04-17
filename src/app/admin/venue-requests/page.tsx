@@ -146,6 +146,11 @@ export default async function AdminVenueRequestsPage({ searchParams }: { searchP
     }).catch(() => []),
     getPlatformPaymentReport(),
     prisma.securityEvent.findMany({
+      where: {
+        type: {
+          not: "story_view",
+        },
+      },
       orderBy: { createdAt: "desc" },
       take: 20,
       include: { user: { select: { username: true, name: true } } },

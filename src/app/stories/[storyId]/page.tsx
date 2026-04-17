@@ -1,15 +1,22 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { isBlockedBetween } from "@/lib/privacy";
+import { getBlockedUserIds } from "@/lib/privacy";
 import { purgeExpiredStories } from "@/lib/stories";
 import { StoryDeleteButton } from "@/components/story-delete-button";
 import { StoryViewer } from "@/components/story-viewer";
 import { getStoryViewSummaries, listHighlightedStoryIdsForUser, registerStoryView } from "@/lib/story-metadata";
 
-export default async function StoryPage({ params }: { params: Promise<{ storyId: string }> }) {
+export default async function StoryPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ storyId: string }>;
+  searchParams: Promise<{ from?: string }>;
+}) {
   await purgeExpiredStories();
   const { storyId } = await params;
+  const routeSearchParams = await searchParams;
   const currentUser = await getCurrentUser();
 
   const visibleStories = await db.story.findMany({
@@ -37,12 +44,8 @@ export default async function StoryPage({ params }: { params: Promise<{ storyId:
   let stories = visibleStories;
 
   if (currentUser) {
-    const filtered: typeof visibleStories = [];
-    for (const story of visibleStories) {
-      if (await isBlockedBetween(currentUser.id, story.author.id)) continue;
-      filtered.push(story);
-    }
-    stories = filtered;
+    const blockedUserIds = new Set(await getBlockedUserIds(currentUser.id));
+    stories = visibleStories.filter((item) => !blockedUserIds.has(item.author.id));
   }
 
   const story = stories.find((item) => item.id === storyId);
@@ -75,12 +78,14 @@ export default async function StoryPage({ params }: { params: Promise<{ storyId:
   const viewSummaries = currentUser?.id === story.author.id ? await getStoryViewSummaries([story.id]) : new Map();
   const currentStoryViews = viewSummaries.get(story.id) ?? { count: 0, viewers: [] };
 
+  const closeHref = routeSearchParams.from === "profile-private" ? "/profile/private" : "/dashboard";
+
   return (
     <StoryViewer
       currentStoryId={story.id}
       stories={orderedStories}
       canDeleteCurrent={currentUser?.id === story.author.id}
-      closeHref="/dashboard"
+      closeHref={closeHref}
       deleteButton={
         currentUser?.id === story.author.id ? (
           <StoryDeleteButton

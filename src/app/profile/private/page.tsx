@@ -287,7 +287,7 @@ export default async function PrivateProfilePage() {
 
                     return (
                       <div key={story.id} className="min-w-[104px] max-w-[104px] text-center sm:min-w-[116px] sm:max-w-[116px]">
-                        <Link href={`/stories/${story.id}`} className="block">
+                        <Link href={`/stories/${story.id}?from=profile-private`} className="block">
                           <div className="app-story-ring rounded-[28px] p-[2px]">
                             <div className="aspect-[9/16] overflow-hidden rounded-[26px] bg-white">
                               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -322,7 +322,7 @@ export default async function PrivateProfilePage() {
             </div>
             <div className="mt-4 flex gap-4 overflow-x-auto pb-1">
               {highlightedStories.map((story) => (
-                <Link key={story.id} href={`/stories/${story.id}`} className="block min-w-[108px] max-w-[108px] sm:min-w-[124px] sm:max-w-[124px]">
+                <Link key={story.id} href={`/stories/${story.id}?from=profile-private`} className="block min-w-[108px] max-w-[108px] sm:min-w-[124px] sm:max-w-[124px]">
                   <div className="overflow-hidden rounded-[28px] border border-neutral-200 bg-neutral-50">
                     <div className="aspect-[9/16] overflow-hidden">
                       {/* eslint-disable-next-line @next/next/no-img-element */}

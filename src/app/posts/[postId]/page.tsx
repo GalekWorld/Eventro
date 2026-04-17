@@ -8,10 +8,10 @@ import { parsePostContent } from "@/lib/post-content";
 import { UserAvatar } from "@/components/user-avatar";
 import { VerifiedBadge } from "@/components/verified-badge";
 import { getVerificationTone, isPubliclyVerified } from "@/lib/user-display";
-import { togglePostLikeAction } from "@/app/actions/social";
 import { PostActions } from "@/components/post-actions";
 import { PostCommentForm } from "@/components/forms/post-comment-form";
 import { CommentActions } from "@/components/comment-actions";
+import { PostLikeButton } from "@/components/post-like-button";
 
 export default async function PostDetailPage({ params }: { params: Promise<{ postId: string }> }) {
   const { postId } = await params;
@@ -127,13 +127,7 @@ export default async function PostDetailPage({ params }: { params: Promise<{ pos
             <div className="border-b border-neutral-200 px-4 py-4">
               <div className="flex items-center gap-4 text-slate-800">
                 {user ? (
-                  <form action={togglePostLikeAction}>
-                    <input type="hidden" name="postId" value={post.id} />
-                    <input type="hidden" name="redirectPath" value={redirectPath} />
-                    <button type="submit" className={`transition ${liked ? "text-rose-500" : "text-slate-800"}`} aria-label="Dar like">
-                      <Heart className={`h-6 w-6 ${liked ? "fill-current" : ""}`} />
-                    </button>
-                  </form>
+                  <PostLikeButton postId={post.id} redirectPath={redirectPath} initialLiked={liked} />
                 ) : (
                   <Heart className="h-6 w-6" />
                 )}
