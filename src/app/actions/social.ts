@@ -515,6 +515,7 @@ export async function deleteStoryAction(formData: FormData) {
     revalidatePath(`/u/${currentUser.username}`);
   }
   publishUserRefresh([currentUser.id], "story:delete", storyId);
+  redirect("/profile/private");
 }
 
 export async function toggleStoryHighlightAction(formData: FormData) {

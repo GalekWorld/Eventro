@@ -1,12 +1,13 @@
 "use client";
 
+import type { MouseEvent as ReactMouseEvent, TouchEvent as ReactTouchEvent } from "react";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import L from "leaflet";
 import { LocateFixed } from "lucide-react";
 import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
 import MarkerClusterGroup from "react-leaflet-cluster";
-import { followUserAction } from "@/app/actions/social";
+import { FollowToggleButton } from "@/components/follow-toggle-button";
 import { getEventPath } from "@/lib/event-path";
 import "leaflet/dist/leaflet.css";
 
@@ -149,12 +150,22 @@ export function RealMap({
   zoom?: number;
   enableClustering?: boolean;
 }) {
+  function stopPopupPropagation(event: ReactMouseEvent<HTMLDivElement> | ReactTouchEvent<HTMLDivElement>) {
+    event.stopPropagation();
+  }
+
   const markerNodes = useMemo(
     () =>
       points.map((point) => (
         <Marker key={point.id} position={[point.latitude, point.longitude]} icon={createAvatarMarker(point)}>
           <Popup autoClose={false} closeOnClick={false} keepInView autoPanPadding={[24, 24]}>
-            <div className="max-h-[58vh] min-w-[240px] max-w-[300px] overflow-y-auto pr-1 sm:min-w-[280px]">
+            <div
+              className="max-h-[58vh] min-w-[240px] max-w-[300px] overflow-y-auto pr-1 sm:min-w-[280px]"
+              onClickCapture={stopPopupPropagation}
+              onMouseDownCapture={stopPopupPropagation}
+              onTouchStartCapture={stopPopupPropagation}
+              onTouchEndCapture={stopPopupPropagation}
+            >
               {point.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={point.imageUrl} alt={point.label} className="mb-3 h-32 w-full rounded-xl object-cover" loading="lazy" decoding="async" />
@@ -205,13 +216,15 @@ export function RealMap({
                 ) : null}
 
                 {point.followUserId ? (
-                  <form action={followUserAction}>
-                    <input type="hidden" name="targetUserId" value={point.followUserId} />
-                    <input type="hidden" name="redirectPath" value={point.followRedirectPath ?? "/map"} />
-                    <button type="submit" className="inline-flex rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-slate-700">
-                      Seguir local
-                    </button>
-                  </form>
+                  <FollowToggleButton
+                    targetUserId={point.followUserId}
+                    redirectPath={point.followRedirectPath ?? "/map"}
+                    username={point.label}
+                    initialFollowing={false}
+                    idleLabel="Seguir local"
+                    activeLabel="Siguiendo"
+                    className="inline-flex rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-slate-700"
+                  />
                 ) : null}
 
                 {point.directionsUrl ? (
@@ -234,7 +247,14 @@ export function RealMap({
 
   return (
     <div className={`overflow-hidden rounded-[24px] border border-neutral-200 bg-white ${heightClassName}`}>
-      <MapContainer center={[center.latitude, center.longitude]} zoom={zoom} scrollWheelZoom className="h-full w-full" preferCanvas>
+      <MapContainer
+        center={[center.latitude, center.longitude]}
+        zoom={zoom}
+        scrollWheelZoom
+        className="h-full w-full"
+        preferCanvas
+        closePopupOnClick={false}
+      >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

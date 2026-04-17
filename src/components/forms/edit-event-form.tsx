@@ -89,20 +89,20 @@ export function EditEventForm({
   });
 
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} encType="multipart/form-data" className="grid gap-4">
       <input type="hidden" name="eventId" value={event.id} />
 
       <FieldCard
         icon={<CalendarDays className="h-5 w-5" />}
-        title="Información básica"
-        description="Edita el anuncio del evento sin tocar el flujo de entradas vendidas."
+        title="Informacion basica"
+        description="Edita el anuncio del evento sin cambiar la logica de entradas que ya esta en marcha."
       >
         <div className="grid gap-3">
-          <input name="title" className="app-input" placeholder="Título del evento" defaultValue={event.title} />
+          <input name="title" className="app-input" placeholder="Ej. Fiesta universitaria con DJ invitado" defaultValue={event.title} />
           <textarea
             name="description"
             className="app-input min-h-32 resize-none"
-            placeholder="Descripción"
+            placeholder="Cuenta el ambiente, artistas, promociones, dress code y detalles importantes del evento."
             defaultValue={event.description ?? ""}
           />
           <div className="rounded-[24px] border border-neutral-200 bg-neutral-50 p-4">
@@ -118,31 +118,35 @@ export function EditEventForm({
               />
               Este evento tiene Espacio VIP
             </label>
+            <p className="mt-3 text-sm text-slate-500">
+              Si activas esta opcion, la ficha mostrara tambien el texto: &quot;Para adquirir un espacio VIP, contacta
+              con:&quot; seguido del telefono del local.
+            </p>
             <input type="hidden" name="hasReservations" value={hasReservations ? "true" : "false"} />
             <input type="hidden" name="reservationInfo" value={serializedVipSpace} />
             {hasReservations ? (
               <div className="mt-3 grid gap-3">
                 <input
                   className="app-input"
-                  placeholder="Cómo es el Espacio VIP"
+                  placeholder="Ej. Mesa privada para 6 personas junto a cabina"
                   value={vipHowItIs}
                   onChange={(nextEvent) => setVipHowItIs(nextEvent.target.value)}
                 />
                 <input
                   className="app-input"
-                  placeholder="Precio del Espacio VIP"
+                  placeholder="Ej. 120 EUR o consumo minimo 150 EUR"
                   value={vipPrice}
                   onChange={(nextEvent) => setVipPrice(nextEvent.target.value)}
                 />
                 <input
                   className="app-input"
-                  placeholder="Qué incluye"
+                  placeholder="Ej. Botella premium, refrescos y acceso prioritario"
                   value={vipIncludes}
                   onChange={(nextEvent) => setVipIncludes(nextEvent.target.value)}
                 />
                 <textarea
                   className="app-input min-h-24 resize-none"
-                  placeholder="Descripción del Espacio VIP"
+                  placeholder="Anade condiciones, horario, zonas disponibles o cualquier aclaracion para quien quiera reservar."
                   value={vipDescription}
                   onChange={(nextEvent) => setVipDescription(nextEvent.target.value)}
                 />
@@ -166,22 +170,22 @@ export function EditEventForm({
 
       <FieldCard
         icon={<MapPin className="h-5 w-5" />}
-        title="Ubicación"
-        description="Actualiza la dirección exacta donde se celebra el evento."
+        title="Ubicacion"
+        description="Actualiza la direccion exacta para que el evento siga saliendo bien en mapa y filtros."
       >
         <div className="grid gap-3">
           <div className="grid gap-3 sm:grid-cols-2">
             <input
               name="location"
               className="app-input"
-              placeholder="Calle y número"
+              placeholder="Ej. Calle Velazquez 12"
               value={location}
               onChange={(nextEvent) => setLocation(nextEvent.target.value)}
             />
             <input
               name="city"
               className="app-input"
-              placeholder="Ciudad"
+              placeholder="Ciudad del evento"
               value={city}
               onChange={(nextEvent) => setCity(nextEvent.target.value)}
             />
@@ -191,7 +195,7 @@ export function EditEventForm({
             searchQuery={[location, city].filter(Boolean).join(", ")}
             latitudeDefault={event.latitude}
             longitudeDefault={event.longitude}
-            helperText="Busca la calle exacta o usa tu ubicación actual para corregir el punto."
+            helperText="Busca la calle exacta o usa tu ubicacion actual para corregir el punto."
           />
         </div>
       </FieldCard>
@@ -199,7 +203,7 @@ export function EditEventForm({
       <FieldCard
         icon={<ImagePlus className="h-5 w-5" />}
         title="Imagen del evento"
-        description="Sube una imagen nueva solo si quieres reemplazar la portada actual."
+        description="Sube una imagen nueva solo si quieres reemplazar el cartel o portada actual."
       >
         <div className="grid gap-3">
           {event.imageUrl ? (
@@ -228,6 +232,7 @@ export function EditEventForm({
               <ImagePlus className="h-5 w-5" />
             </div>
             <p className="mt-3 text-sm font-semibold text-slate-950">Toca para sustituir la portada</p>
+            <p className="mt-2 text-sm text-slate-500">PNG, JPG o WEBP hasta 5MB.</p>
             {fileName ? <p className="mt-2 text-sm text-sky-700">{fileName}</p> : null}
           </label>
         </div>
@@ -245,7 +250,7 @@ export function EditEventForm({
             <Ticket className="h-4 w-4" />
             <span className="font-medium">Las entradas se gestionan por separado</span>
           </div>
-          <p className="mt-2">Esta edición actualiza cartel, fecha, ubicación y VIP. Los tipos de entrada siguen como están para no romper ventas existentes.</p>
+          <p className="mt-2">Esta edicion actualiza cartel, fecha, ubicacion y VIP. Los tipos de entrada siguen como estan para no romper ventas existentes.</p>
         </div>
 
         {state.error ? <p className="text-sm text-red-600">{state.error}</p> : null}

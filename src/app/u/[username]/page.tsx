@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { blockUserAction, followUserAction, openDirectConversationAction } from "@/app/actions/social";
+import { blockUserAction, openDirectConversationAction } from "@/app/actions/social";
+import { FollowToggleButton } from "@/components/follow-toggle-button";
 import { UserAvatar } from "@/components/user-avatar";
 import { VerifiedBadge } from "@/components/verified-badge";
 import { getVerificationTone, isPubliclyVerified } from "@/lib/user-display";
@@ -124,15 +125,15 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
                 <h1 className="text-2xl font-semibold text-slate-950">@{profile.username}</h1>
                 {isPubliclyVerified(profile) ? <VerifiedBadge label tone={getVerificationTone(profile)} /> : null}
               </div>
-              {currentUser && !isOwnProfile ? (
+                {currentUser && !isOwnProfile ? (
                 <div className="flex flex-wrap gap-2">
-                  <form action={followUserAction}>
-                    <input type="hidden" name="targetUserId" value={profile.id} />
-                    <input type="hidden" name="redirectPath" value={`/u/${profile.username}`} />
-                    <button className={isFollowing ? "app-button-secondary" : "app-button-primary"} type="submit">
-                      {isFriend ? "Amigos" : isFollowing ? "Siguiendo" : "Seguir"}
-                    </button>
-                  </form>
+                  <FollowToggleButton
+                    targetUserId={profile.id}
+                    redirectPath={`/u/${profile.username}`}
+                    username={`@${profile.username ?? "usuario"}`}
+                    initialFollowing={isFollowing}
+                    activeLabel={isFriend ? "Amigos" : "Siguiendo"}
+                  />
                   {existingConversationId ? (
                     <Link href={`/messages/${existingConversationId}`} className="app-button-secondary">
                       Mensaje

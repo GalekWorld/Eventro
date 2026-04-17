@@ -3,7 +3,7 @@ import { BadgeCheck, CreditCard, Flag, Search, ShieldCheck, Store, Trash2 } from
 import { requireRole } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { reviewVenueRequestAction } from "@/app/actions/venue";
-import { deleteAdminEventAction, featureAdminEventAction } from "@/app/actions/local";
+import { deleteEventAction, featureAdminEventAction } from "@/app/actions/local";
 import {
   deleteDirectMessageAction,
   deleteEventChatMessageAction,
@@ -500,7 +500,7 @@ export default async function AdminVenueRequestsPage({ searchParams }: { searchP
                           {featuredState.get(event.id) ? "Quitar destacado" : "Destacar"}
                         </button>
                       </form>
-                      <form action={deleteAdminEventAction}>
+                      <form action={deleteEventAction}>
                         <input type="hidden" name="eventId" value={event.id} />
                         <button className="inline-flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-100" type="submit">
                           <Trash2 className="h-4 w-4" />

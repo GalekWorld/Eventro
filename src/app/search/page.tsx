@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { followUserAction } from "@/app/actions/social";
+import { FollowToggleButton } from "@/components/follow-toggle-button";
 import { UserAvatar } from "@/components/user-avatar";
 import { VerifiedBadge } from "@/components/verified-badge";
 import { getVerificationTone, isPubliclyVerified } from "@/lib/user-display";
@@ -157,13 +157,12 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
                     </div>
 
                     {currentUser ? (
-                      <form action={followUserAction}>
-                        <input type="hidden" name="targetUserId" value={user.id} />
-                        <input type="hidden" name="redirectPath" value={`/search${query ? `?q=${encodeURIComponent(query)}` : ""}`} />
-                        <button className={isFollowing ? "app-button-secondary" : "app-button-primary"} type="submit">
-                          {isFollowing ? "Siguiendo" : "Seguir"}
-                        </button>
-                      </form>
+                      <FollowToggleButton
+                        targetUserId={user.id}
+                        redirectPath={`/search${query ? `?q=${encodeURIComponent(query)}` : ""}`}
+                        username={`@${user.username ?? "usuario"}`}
+                        initialFollowing={isFollowing}
+                      />
                     ) : null}
                   </div>
                 </article>

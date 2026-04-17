@@ -191,8 +191,8 @@ export async function updateEventBasicsAction(_prevState: ActionState, formData:
   }
 }
 
-export async function deleteAdminEventAction(formData: FormData): Promise<void> {
-  const admin = await requireRole(["ADMIN"]);
+export async function deleteEventAction(formData: FormData): Promise<void> {
+  const currentUser = await requireRole(["ADMIN", "VENUE"]);
   const eventId = normalize(formData.get("eventId"));
   if (!eventId) return;
 
@@ -209,23 +209,26 @@ export async function deleteAdminEventAction(formData: FormData): Promise<void> 
   });
 
   if (!event) return;
+  if (currentUser.role === "VENUE" && event.ownerId !== currentUser.id) return;
 
   await db.event.delete({
     where: { id: eventId },
   }).catch(() => null);
 
-  await createAdminAuditLog({
-    adminId: admin.id,
-    action: "delete_event",
-    targetType: "event",
-    targetId: eventId,
-    details: event.title,
-  });
+  if (currentUser.role === "ADMIN") {
+    await createAdminAuditLog({
+      adminId: currentUser.id,
+      action: "delete_event",
+      targetType: "event",
+      targetId: eventId,
+      details: event.title,
+    });
+  }
 
   await sendTelegramAlert({
-    title: "Anuncio eliminado por admin",
+    title: currentUser.role === "ADMIN" ? "Anuncio eliminado por admin" : "Anuncio eliminado por local",
     lines: [
-      `Admin: ${admin.username ?? admin.email}`,
+      `${currentUser.role === "ADMIN" ? "Admin" : "Local"}: ${currentUser.username ?? currentUser.email}`,
       `Evento: ${event.title}`,
       `Local: ${event.owner.username ?? event.owner.email}`,
       `Ciudad: ${event.city}`,
@@ -233,6 +236,7 @@ export async function deleteAdminEventAction(formData: FormData): Promise<void> 
   });
 
   revalidatePath("/admin/venue-requests");
+  revalidatePath("/local/dashboard");
   revalidatePath("/events");
   revalidatePath("/map");
   revalidatePath("/dashboard");

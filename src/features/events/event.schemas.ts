@@ -39,7 +39,7 @@ export const createEventSchema = z
     longitude: z.coerce.number().min(-180).max(180).nullable().optional(),
     date: z.string().datetime(),
     endDate: z.string().datetime().optional(),
-    imageUrl: z.string().trim().max(255).optional().or(z.literal("")),
+    imageUrl: z.string().trim().max(7_000_000).optional().or(z.literal("")),
     published: z.coerce.boolean().default(false),
     ticketTypes: z.array(ticketTypeSchema).min(1, "Añade al menos un tipo de entrada."),
   })
@@ -83,7 +83,7 @@ export const updateEventBasicsSchema = z
     longitude: z.coerce.number().min(-180).max(180).nullable().optional(),
     date: z.string().datetime(),
     endDate: z.string().datetime().optional(),
-    imageUrl: z.string().trim().max(255).optional().or(z.literal("")),
+    imageUrl: z.string().trim().max(7_000_000).optional().or(z.literal("")),
     published: z.coerce.boolean().default(false),
   })
   .superRefine((value, ctx) => {

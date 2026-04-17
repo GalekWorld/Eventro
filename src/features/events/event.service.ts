@@ -175,6 +175,11 @@ export async function getPublishedEventBySlug(slug: string) {
           username: true,
           isVerified: true,
           role: true,
+          venueRequest: {
+            select: {
+              phone: true,
+            },
+          },
         },
       },
       ticketTypes: {

@@ -122,20 +122,23 @@ export function CreateEventForm() {
   });
 
   return (
-    <form action={formAction} className="grid gap-4">
+    <form action={formAction} encType="multipart/form-data" className="grid gap-4">
       <input type="hidden" name="ticketTypes" value={serializedTicketTypes} />
 
       <FieldCard
         icon={<CalendarDays className="h-5 w-5" />}
-        title="Información básica"
-        description="Ponle nombre al evento y explica bien qué va a pasar."
+        title="Informacion basica"
+        description="Ponle un nombre claro al plan y explica que va a encontrar la gente al llegar."
       >
         <div className="grid gap-3">
-          <input name="title" className="app-input" placeholder="Título del evento" />
+          <div className="grid gap-1">
+            <p className="text-xs font-medium uppercase tracking-[0.14em] text-slate-400">Titulo</p>
+            <input name="title" className="app-input" placeholder="Ej. Fiesta universitaria con DJ invitado" />
+          </div>
           <textarea
             name="description"
             className="app-input min-h-32 resize-none"
-            placeholder="Descripción, ambiente, artistas, dress code, promos o lo que haga falta."
+            placeholder="Cuenta el ambiente, artistas, tipo de musica, dress code, promociones, consumiciones o cualquier detalle importante."
           />
           <div className="rounded-[24px] border border-neutral-200 bg-neutral-50 p-4">
             <label className="flex items-center gap-3 text-sm font-medium text-slate-700">
@@ -150,31 +153,35 @@ export function CreateEventForm() {
               />
               Este evento tiene Espacio VIP
             </label>
+            <p className="mt-3 text-sm text-slate-500">
+              Rellena esto solo si el local ofrece reservados o mesas VIP. En la ficha del evento se mostrara tambien
+              el texto: &quot;Para adquirir un espacio VIP, contacta con:&quot; seguido del telefono del local.
+            </p>
             <input type="hidden" name="hasReservations" value={hasReservations ? "true" : "false"} />
             <input type="hidden" name="reservationInfo" value={serializedVipSpace} />
             {hasReservations ? (
               <div className="mt-3 grid gap-3">
                 <input
                   className="app-input"
-                  placeholder="Cómo es el Espacio VIP"
+                  placeholder="Ej. Mesa privada para 6 personas junto a cabina"
                   value={vipHowItIs}
                   onChange={(event) => setVipHowItIs(event.target.value)}
                 />
                 <input
                   className="app-input"
-                  placeholder="Precio del Espacio VIP"
+                  placeholder="Ej. 120 EUR o consumo minimo 150 EUR"
                   value={vipPrice}
                   onChange={(event) => setVipPrice(event.target.value)}
                 />
                 <input
                   className="app-input"
-                  placeholder="Qué incluye"
+                  placeholder="Ej. Botella premium, refrescos y acceso prioritario"
                   value={vipIncludes}
                   onChange={(event) => setVipIncludes(event.target.value)}
                 />
                 <textarea
                   className="app-input min-h-24 resize-none"
-                  placeholder="Descripción del Espacio VIP"
+                  placeholder="Anade condiciones, horario, zonas disponibles o cualquier aclaracion para quien quiera reservar."
                   value={vipDescription}
                   onChange={(event) => setVipDescription(event.target.value)}
                 />
@@ -187,7 +194,7 @@ export function CreateEventForm() {
       <FieldCard
         icon={<Clock3 className="h-5 w-5" />}
         title="Fecha y horario"
-        description="Elige claramente cuándo empieza y cuándo termina."
+        description="Marca el dia del evento y las horas reales de apertura y cierre."
       >
         <div className="grid gap-3 sm:grid-cols-3">
           <input name="eventDate" className="app-input" type="date" />
@@ -199,7 +206,7 @@ export function CreateEventForm() {
       <FieldCard
         icon={<Ticket className="h-5 w-5" />}
         title="Entradas"
-        description="Configura varios tipos de entrada con precio, cupo y ventana de venta. La descripción de la entrada principal se usará como mensaje visible del anuncio."
+        description="Configura cada tipo de entrada con nombre, precio, aforo y periodo de venta. La descripcion de la principal es la que mas vera la gente."
       >
         <div className="grid gap-4">
           {ticketTypes.map((ticketType, index) => (
@@ -220,13 +227,13 @@ export function CreateEventForm() {
                 <div className="grid gap-3 sm:grid-cols-2">
                   <input
                     className="app-input"
-                    placeholder="Nombre"
+                    placeholder="Ej. Entrada general"
                     value={ticketType.name}
                     onChange={(event) => updateTicketType(ticketType.id, "name", event.target.value)}
                   />
                   <input
                     className="app-input"
-                    placeholder="Descripción breve"
+                    placeholder="Ej. Acceso hasta las 02:00"
                     value={ticketType.description}
                     onChange={(event) => updateTicketType(ticketType.id, "description", event.target.value)}
                   />
@@ -238,7 +245,7 @@ export function CreateEventForm() {
                     type="number"
                     min="0"
                     step="0.01"
-                    placeholder="Precio"
+                    placeholder="Precio en EUR"
                     value={ticketType.price}
                     onChange={(event) => updateTicketType(ticketType.id, "price", event.target.value)}
                   />
@@ -247,7 +254,7 @@ export function CreateEventForm() {
                     type="number"
                     min="1"
                     step="1"
-                    placeholder="Cantidad disponible"
+                    placeholder="Aforo de esta entrada"
                     value={ticketType.capacity}
                     onChange={(event) => updateTicketType(ticketType.id, "capacity", event.target.value)}
                   />
@@ -256,7 +263,7 @@ export function CreateEventForm() {
                     type="number"
                     min="0"
                     step="1"
-                    placeholder="Consumiciones"
+                    placeholder="Consumiciones incluidas"
                     value={ticketType.includedDrinks}
                     onChange={(event) => updateTicketType(ticketType.id, "includedDrinks", event.target.value)}
                   />
@@ -283,7 +290,7 @@ export function CreateEventForm() {
                     checked={ticketType.isVisible}
                     onChange={(event) => updateTicketType(ticketType.id, "isVisible", event.target.checked)}
                   />
-                  Mostrar este tipo de entrada al público
+                  Mostrar este tipo de entrada al publico
                 </label>
               </div>
             </div>
@@ -291,29 +298,29 @@ export function CreateEventForm() {
 
           <button type="button" onClick={addTicketType} className="app-button-secondary w-full">
             <Plus className="h-4 w-4" />
-            Añadir otro tipo de entrada
+            Anadir otro tipo de entrada
           </button>
         </div>
       </FieldCard>
 
       <FieldCard
         icon={<MapPin className="h-5 w-5" />}
-        title="Ubicación"
-        description="Guarda la dirección exacta para que el local y el evento salgan bien en el mapa."
+        title="Ubicacion"
+        description="Pon la direccion exacta del evento para que el anuncio aparezca correctamente en el mapa y en los filtros."
       >
         <div className="grid gap-3">
           <div className="grid gap-3 sm:grid-cols-2">
             <input
               name="location"
               className="app-input"
-              placeholder="Calle y número"
+              placeholder="Ej. Calle Velazquez 12"
               value={location}
               onChange={(event) => setLocation(event.target.value)}
             />
             <input
               name="city"
               className="app-input"
-              placeholder="Ciudad"
+              placeholder="Ciudad del evento"
               value={city}
               onChange={(event) => setCity(event.target.value)}
             />
@@ -321,7 +328,7 @@ export function CreateEventForm() {
 
           <PreciseLocationPicker
             searchQuery={[location, city].filter(Boolean).join(", ")}
-            helperText="Busca la calle exacta o usa tu ubicación actual para guardar el punto con precisión."
+            helperText="Busca la calle exacta o usa tu ubicacion actual para guardar el punto con precision."
           />
         </div>
       </FieldCard>
@@ -329,7 +336,7 @@ export function CreateEventForm() {
       <FieldCard
         icon={<ImagePlus className="h-5 w-5" />}
         title="Imagen del evento"
-        description="Sube la portada que verá la gente en el mapa y en el feed de eventos."
+        description="Sube el cartel o portada que vera la gente en el mapa, en el feed y al abrir el evento."
       >
         <label
           className={`flex min-h-40 cursor-pointer flex-col items-center justify-center rounded-[28px] border border-dashed px-5 py-8 text-center transition ${
@@ -353,7 +360,7 @@ export function CreateEventForm() {
             <ImagePlus className="h-6 w-6" />
           </div>
           <p className="mt-4 text-lg font-semibold text-slate-950">Arrastra la imagen o toca para subirla</p>
-          <p className="mt-2 text-sm text-slate-500">PNG, JPG o WEBP hasta 5MB</p>
+          <p className="mt-2 text-sm text-slate-500">PNG, JPG o WEBP hasta 5MB. Mejor si es un cartel vertical o una portada limpia.</p>
           {fileName ? <p className="mt-3 text-sm text-sky-700">{fileName}</p> : null}
         </label>
       </FieldCard>

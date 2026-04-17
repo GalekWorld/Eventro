@@ -31,6 +31,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ sl
   const pricing = getPrimaryTicketSummary(event);
   const canSeeInventory = Boolean(user && (user.role === "ADMIN" || user.id === event.owner.id));
   const vipSpace = parseVipSpace(event.reservationInfo);
+  const vipContactPhone = event.owner.venueRequest?.phone?.trim() ?? "";
   const ticketLabel =
     event.ticketCapacity == null
       ? "Aforo sin límite definido"
@@ -89,6 +90,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ sl
                   {vipSpace?.price ? <p>Precio: {vipSpace.price}</p> : null}
                   {vipSpace?.includes ? <p>Incluye: {vipSpace.includes}</p> : null}
                   {vipSpace?.description ? <p>{vipSpace.description}</p> : null}
+                  {vipContactPhone ? <p>Para adquirir un espacio VIP, contacta con: {vipContactPhone}</p> : null}
                 </div>
               </div>
             ) : null}

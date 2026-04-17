@@ -9,6 +9,7 @@ import {
   Shield,
   Target,
   Ticket,
+  Trash2,
   TrendingUp,
   Users,
 } from "lucide-react";
@@ -32,6 +33,7 @@ import {
   startStripeConnectOnboardingAction,
   syncStripeConnectStatusAction,
 } from "@/app/actions/payments";
+import { deleteEventAction } from "@/app/actions/local";
 import {
   addDays,
   getRangeLength,
@@ -698,6 +700,13 @@ export default async function LocalDashboardPage({ searchParams }: { searchParam
                         <Link href={`/local/events/${event.id}/tickets`} className="text-sky-600 transition hover:text-sky-700">
                           Ver
                         </Link>
+                        <form action={deleteEventAction}>
+                          <input type="hidden" name="eventId" value={event.id} />
+                          <button type="submit" className="inline-flex items-center gap-1 text-red-600 transition hover:text-red-700">
+                            <Trash2 className="h-4 w-4" />
+                            Borrar
+                          </button>
+                        </form>
                       </div>
                     </div>
                   </div>

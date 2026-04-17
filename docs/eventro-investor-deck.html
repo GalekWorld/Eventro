@@ -1,0 +1,723 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Eventro Investor Deck</title>
+    <style>
+      :root {
+        --bg: #0b1020;
+        --panel: #111833;
+        --panel-soft: #161f42;
+        --ink: #f5f7ff;
+        --muted: #b7c0df;
+        --line: rgba(255, 255, 255, 0.08);
+        --accent: #59c3ff;
+        --accent-2: #8ef0c0;
+        --accent-3: #ffd86b;
+        --danger: #ff8f8f;
+        --shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Segoe UI", Arial, sans-serif;
+        background:
+          radial-gradient(circle at top left, rgba(89, 195, 255, 0.12), transparent 34%),
+          radial-gradient(circle at top right, rgba(142, 240, 192, 0.1), transparent 28%),
+          linear-gradient(180deg, #09101d 0%, #0b1020 100%);
+        color: var(--ink);
+      }
+
+      .deck {
+        width: min(1280px, 100%);
+        margin: 0 auto;
+        padding: 28px;
+      }
+
+      .slide {
+        min-height: 720px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
+        border: 1px solid var(--line);
+        border-radius: 28px;
+        padding: 52px;
+        margin-bottom: 26px;
+        box-shadow: var(--shadow);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .slide::after {
+        content: "";
+        position: absolute;
+        inset: auto -120px -120px auto;
+        width: 280px;
+        height: 280px;
+        background: radial-gradient(circle, rgba(89, 195, 255, 0.15), transparent 65%);
+        pointer-events: none;
+      }
+
+      .kicker {
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        font-size: 12px;
+        color: var(--accent);
+        margin: 0 0 16px;
+      }
+
+      h1, h2 {
+        margin: 0 0 16px;
+        line-height: 1.05;
+      }
+
+      h1 {
+        font-size: 66px;
+        max-width: 760px;
+      }
+
+      h2 {
+        font-size: 44px;
+        max-width: 760px;
+      }
+
+      p {
+        color: var(--muted);
+        font-size: 21px;
+        line-height: 1.6;
+        margin: 0 0 18px;
+        max-width: 880px;
+      }
+
+      .subtle {
+        font-size: 16px;
+        color: #8f98bb;
+      }
+
+      .grid-2,
+      .grid-3,
+      .grid-4 {
+        display: grid;
+        gap: 18px;
+        align-items: stretch;
+      }
+
+      .grid-2 {
+        grid-template-columns: 1.2fr 1fr;
+      }
+
+      .grid-3 {
+        grid-template-columns: repeat(3, 1fr);
+      }
+
+      .grid-4 {
+        grid-template-columns: repeat(4, 1fr);
+      }
+
+      .card {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        padding: 22px;
+      }
+
+      .card h3 {
+        margin: 0 0 10px;
+        font-size: 22px;
+      }
+
+      .card p,
+      .card li {
+        font-size: 17px;
+        line-height: 1.55;
+        color: var(--muted);
+      }
+
+      .phone-strip {
+        display: flex;
+        gap: 18px;
+        justify-content: center;
+        align-items: end;
+        margin-top: 10px;
+      }
+
+      .phone {
+        width: 240px;
+        height: 500px;
+        border-radius: 34px;
+        border: 10px solid #0e1429;
+        background: linear-gradient(180deg, #eef2ff 0%, #dfe7ff 100%);
+        box-shadow: 0 24px 40px rgba(0, 0, 0, 0.35);
+        overflow: hidden;
+        position: relative;
+      }
+
+      .phone::before {
+        content: "";
+        position: absolute;
+        top: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 110px;
+        height: 22px;
+        border-radius: 999px;
+        background: #0b1020;
+      }
+
+      .screen {
+        position: absolute;
+        inset: 44px 0 0;
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .app-bar,
+      .app-card,
+      .app-chip,
+      .app-line {
+        border-radius: 16px;
+        background: rgba(18, 24, 51, 0.12);
+      }
+
+      .app-bar {
+        height: 54px;
+      }
+
+      .app-card {
+        height: 150px;
+      }
+
+      .app-line {
+        height: 14px;
+      }
+
+      .app-chip {
+        width: 40%;
+        height: 28px;
+      }
+
+      .mockup-label {
+        position: absolute;
+        left: 16px;
+        bottom: 16px;
+        font-size: 13px;
+        color: #0b1020;
+        background: rgba(255, 255, 255, 0.78);
+        padding: 8px 12px;
+        border-radius: 999px;
+      }
+
+      .metric {
+        padding: 24px;
+        border-radius: 22px;
+        background: linear-gradient(180deg, rgba(89, 195, 255, 0.1), rgba(255, 255, 255, 0.03));
+        border: 1px solid var(--line);
+      }
+
+      .metric strong {
+        display: block;
+        font-size: 40px;
+        margin-bottom: 8px;
+      }
+
+      .metric span {
+        color: var(--muted);
+        font-size: 15px;
+      }
+
+      .bars {
+        display: flex;
+        align-items: end;
+        gap: 14px;
+        height: 240px;
+        margin-top: 18px;
+      }
+
+      .bar {
+        flex: 1;
+        border-radius: 18px 18px 8px 8px;
+        background: linear-gradient(180deg, var(--accent), #287cf6);
+        position: relative;
+        min-height: 40px;
+      }
+
+      .bar:nth-child(2) {
+        background: linear-gradient(180deg, var(--accent-2), #1da77f);
+      }
+
+      .bar:nth-child(3) {
+        background: linear-gradient(180deg, var(--accent-3), #f0a400);
+      }
+
+      .bar:nth-child(4) {
+        background: linear-gradient(180deg, #f8a1ff, #c04cff);
+      }
+
+      .bar-label {
+        position: absolute;
+        inset: auto 0 -30px;
+        text-align: center;
+        font-size: 14px;
+        color: var(--muted);
+      }
+
+      .bar-value {
+        position: absolute;
+        inset: -28px 0 auto;
+        text-align: center;
+        font-size: 14px;
+        color: var(--ink);
+      }
+
+      ul {
+        margin: 12px 0 0;
+        padding-left: 22px;
+      }
+
+      li {
+        margin-bottom: 10px;
+      }
+
+      .quote {
+        font-size: 30px;
+        line-height: 1.4;
+        color: var(--ink);
+        max-width: 920px;
+      }
+
+      .tag {
+        display: inline-block;
+        font-size: 14px;
+        letter-spacing: 0.02em;
+        color: #0b1020;
+        background: var(--accent-2);
+        padding: 10px 14px;
+        border-radius: 999px;
+        margin-right: 8px;
+        margin-bottom: 8px;
+      }
+
+      .footer-note {
+        margin-top: 22px;
+        font-size: 13px;
+        color: #8f98bb;
+      }
+
+      @media (max-width: 980px) {
+        .slide {
+          min-height: auto;
+          padding: 32px 24px;
+        }
+
+        .grid-2,
+        .grid-3,
+        .grid-4 {
+          grid-template-columns: 1fr;
+        }
+
+        .phone-strip {
+          flex-direction: column;
+          align-items: center;
+        }
+
+        h1 {
+          font-size: 48px;
+        }
+
+        h2 {
+          font-size: 34px;
+        }
+
+        p {
+          font-size: 18px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="deck">
+      <section class="slide">
+        <p class="kicker">Eventro / Investor Presentation</p>
+        <h1>La plataforma social de eventos pensada para móvil.</h1>
+        <p>
+          Eventro une descubrimiento, comunidad e interacción en tiempo real para que
+          encontrar planes, conectar con personas y vivir eventos sea una experiencia
+          rápida, visual y natural.
+        </p>
+        <div class="phone-strip">
+          <div class="phone">
+            <div class="screen">
+              <div class="app-bar"></div>
+              <div class="app-card"></div>
+              <div class="app-chip"></div>
+              <div class="app-line"></div>
+              <div class="app-line"></div>
+              <div class="app-card" style="height: 118px;"></div>
+            </div>
+            <div class="mockup-label">Home / Feed</div>
+          </div>
+          <div class="phone" style="transform: translateY(-14px);">
+            <div class="screen">
+              <div class="app-bar"></div>
+              <div class="app-card" style="height: 240px;"></div>
+              <div class="app-chip"></div>
+              <div class="app-line"></div>
+              <div class="app-line"></div>
+            </div>
+            <div class="mockup-label">Eventos / Descubrimiento</div>
+          </div>
+          <div class="phone">
+            <div class="screen">
+              <div class="app-bar"></div>
+              <div class="app-card" style="height: 180px;"></div>
+              <div class="app-card" style="height: 180px;"></div>
+            </div>
+            <div class="mockup-label">Perfil / Social Layer</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide">
+        <p class="kicker">Problem</p>
+        <h2>Descubrir planes sigue siendo una experiencia fragmentada.</h2>
+        <div class="grid-2">
+          <div>
+            <p>
+              Los usuarios saltan entre redes sociales, grupos privados, mapas, chats y
+              páginas de eventos sin una forma clara de saber qué hacer, con quién y cerca
+              de ellos.
+            </p>
+            <p class="quote">
+              Hoy el ocio local tiene distribución, pero no tiene una capa social unificada.
+            </p>
+          </div>
+          <div class="grid-2" style="grid-template-columns: 1fr 1fr;">
+            <div class="card">
+              <h3>Dispersión</h3>
+              <p>La información del evento vive en demasiados canales.</p>
+            </div>
+            <div class="card">
+              <h3>Sin contexto social</h3>
+              <p>No sabes quién va, qué ambiente hay o si encaja contigo.</p>
+            </div>
+            <div class="card">
+              <h3>Poca fluidez</h3>
+              <p>Muchas soluciones son lentas, pesadas o no están pensadas para móvil.</p>
+            </div>
+            <div class="card">
+              <h3>Baja recurrencia</h3>
+              <p>Los organizadores publican eventos, pero no construyen comunidad.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide">
+        <p class="kicker">Solution</p>
+        <h2>Eventro convierte el evento en un punto de encuentro social.</h2>
+        <div class="grid-3">
+          <div class="card">
+            <h3>Descubrimiento</h3>
+            <p>Eventos por ubicación, ciudad, contexto e intereses.</p>
+          </div>
+          <div class="card">
+            <h3>Relación social</h3>
+            <p>Perfiles, historias, posts, chats y actividad compartida.</p>
+          </div>
+          <div class="card">
+            <h3>Acción local</h3>
+            <p>Organizadores, locales y asistentes dentro del mismo ecosistema.</p>
+          </div>
+        </div>
+        <p style="margin-top: 26px;">
+          No es solo una agenda de eventos ni solo una red social. Eventro une ambas capas
+          para hacer que la experiencia sea más útil, más viva y más recurrente.
+        </p>
+      </section>
+
+      <section class="slide">
+        <p class="kicker">Product</p>
+        <h2>Una experiencia completa para descubrir, compartir y gestionar.</h2>
+        <div class="grid-4">
+          <div class="card">
+            <h3>Eventos</h3>
+            <p>Exploración, filtros, detalle, guardados y navegación rápida.</p>
+          </div>
+          <div class="card">
+            <h3>Mapa</h3>
+            <p>Contexto geográfico y social en una sola vista.</p>
+          </div>
+          <div class="card">
+            <h3>Social</h3>
+            <p>Perfiles, publicaciones, historias, chats y notificaciones.</p>
+          </div>
+          <div class="card">
+            <h3>Operación</h3>
+            <p>Herramientas para organizadores, locales y paneles de gestión.</p>
+          </div>
+        </div>
+        <div class="footer-note">
+          Recomendación visual: sustituir los mockups de la portada por capturas reales de
+          Explorar, Mapa, Perfil y Dashboard para una versión final con inversores.
+        </div>
+      </section>
+
+      <section class="slide">
+        <p class="kicker">Why Now</p>
+        <h2>La oportunidad nace en la intersección de social, local y experiencia.</h2>
+        <p>
+          Eventro se posiciona donde convergen el social discovery, la economía de ocio
+          local y las herramientas para activación de comunidades. El usuario ya vive en el
+          móvil, consume contenido visual y toma decisiones cada vez más guiadas por
+          confianza social y contexto inmediato.
+        </p>
+        <div style="margin-top: 18px;">
+          <span class="tag">Mobile-first behavior</span>
+          <span class="tag">Local discovery</span>
+          <span class="tag">Community-driven decisions</span>
+          <span class="tag">Always-on social interaction</span>
+        </div>
+      </section>
+
+      <section class="slide">
+        <p class="kicker">Experience</p>
+        <h2>Diseñada para sentirse como una app, no como una web pesada.</h2>
+        <div class="grid-2">
+          <div>
+            <p>
+              La experiencia de Eventro está concebida con lógica mobile-first y con una
+              interfaz pensada para consumo rápido, interacción directa y alto contexto
+              visual.
+            </p>
+            <ul>
+              <li>Navegación rápida entre pantallas clave.</li>
+              <li>Consumo ligero de contenido y contexto social.</li>
+              <li>Experiencia visual optimizada para uso real desde móvil.</li>
+              <li>Flujos completos de registro, exploración, interacción y gestión.</li>
+            </ul>
+          </div>
+          <div class="phone-strip">
+            <div class="phone" style="width: 220px; height: 470px;">
+              <div class="screen">
+                <div class="app-bar"></div>
+                <div class="app-card"></div>
+                <div class="app-chip"></div>
+                <div class="app-card" style="height: 120px;"></div>
+              </div>
+              <div class="mockup-label">Mapa / Explorar</div>
+            </div>
+            <div class="phone" style="width: 220px; height: 470px;">
+              <div class="screen">
+                <div class="app-bar"></div>
+                <div class="app-card" style="height: 126px;"></div>
+                <div class="app-card" style="height: 126px;"></div>
+                <div class="app-card" style="height: 126px;"></div>
+              </div>
+              <div class="mockup-label">Stories / Social</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide">
+        <p class="kicker">Business Model</p>
+        <h2>Múltiples líneas de monetización dentro del mismo ecosistema.</h2>
+        <div class="grid-2">
+          <div class="grid-2" style="grid-template-columns: 1fr 1fr;">
+            <div class="card">
+              <h3>Promoción destacada</h3>
+              <p>Mayor visibilidad para eventos, locales y campañas concretas.</p>
+            </div>
+            <div class="card">
+              <h3>Suscripción B2B</h3>
+              <p>Herramientas premium para organizadores y perfiles profesionales.</p>
+            </div>
+            <div class="card">
+              <h3>Comisiones</h3>
+              <p>Activaciones, ventas, reservas o monetización transaccional futura.</p>
+            </div>
+            <div class="card">
+              <h3>Analítica y activación</h3>
+              <p>Productos de valor añadido para crecimiento local y comunidad.</p>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Mix ilustrativo de ingresos</h3>
+            <div class="bars">
+              <div class="bar" style="height: 60%;">
+                <div class="bar-value">35%</div>
+                <div class="bar-label">Promoción</div>
+              </div>
+              <div class="bar" style="height: 78%;">
+                <div class="bar-value">40%</div>
+                <div class="bar-label">B2B</div>
+              </div>
+              <div class="bar" style="height: 45%;">
+                <div class="bar-value">15%</div>
+                <div class="bar-label">Comisiones</div>
+              </div>
+              <div class="bar" style="height: 35%;">
+                <div class="bar-value">10%</div>
+                <div class="bar-label">Datos / Activación</div>
+              </div>
+            </div>
+            <p class="subtle" style="margin-top: 36px;">
+              Distribución orientativa para presentación. Sustituir por modelo financiero real.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide">
+        <p class="kicker">Go To Market</p>
+        <h2>Crecimiento por densidad local, comunidad y recurrencia.</h2>
+        <div class="grid-3">
+          <div class="card">
+            <h3>1. Ciudad foco</h3>
+            <p>Comenzar por núcleos concretos con suficiente densidad de planes y perfiles.</p>
+          </div>
+          <div class="card">
+            <h3>2. Activación</h3>
+            <p>Incorporar locales, promotores, creadores y usuarios conectados entre sí.</p>
+          </div>
+          <div class="card">
+            <h3>3. Efecto red</h3>
+            <p>Cada evento mejora el producto y cada usuario añade contexto social.</p>
+          </div>
+        </div>
+        <p style="margin-top: 28px;">
+          Eventro tiene potencial de recurrencia porque no depende de una sola acción. El
+          usuario puede volver por eventos, por amigos, por contenido, por historias o por
+          contexto local.
+        </p>
+      </section>
+
+      <section class="slide">
+        <p class="kicker">Traction</p>
+        <h2>Base tecnológica real y producto funcional listo para crecer.</h2>
+        <div class="grid-4">
+          <div class="metric">
+            <strong>Producto</strong>
+            <span>Registro, perfiles, eventos, mapa, posts, historias, chats y notificaciones.</span>
+          </div>
+          <div class="metric">
+            <strong>Mobile</strong>
+            <span>Experiencia optimizada para uso real y navegación frecuente desde móvil.</span>
+          </div>
+          <div class="metric">
+            <strong>Infraestructura</strong>
+            <span>Arquitectura preparada para seguir iterando y escalar mejor.</span>
+          </div>
+          <div class="metric">
+            <strong>Operación</strong>
+            <span>Capas tanto para usuario final como para perfiles con gestión.</span>
+          </div>
+        </div>
+        <div class="card" style="margin-top: 22px;">
+          <h3>Cómo completar esta slide con datos reales</h3>
+          <p>
+            Sustituye este bloque por usuarios registrados, eventos publicados, ciudades activas,
+            retención, sesiones por usuario y crecimiento semanal o mensual cuando quieras presentar
+            métricas concretas.
+          </p>
+        </div>
+      </section>
+
+      <section class="slide">
+        <p class="kicker">Projection</p>
+        <h2>Escenario ilustrativo de crecimiento por fases.</h2>
+        <div class="grid-2">
+          <div class="card">
+            <h3>Crecimiento de usuarios</h3>
+            <div class="bars">
+              <div class="bar" style="height: 25%;">
+                <div class="bar-value">2k</div>
+                <div class="bar-label">Fase 1</div>
+              </div>
+              <div class="bar" style="height: 46%;">
+                <div class="bar-value">8k</div>
+                <div class="bar-label">Fase 2</div>
+              </div>
+              <div class="bar" style="height: 68%;">
+                <div class="bar-value">20k</div>
+                <div class="bar-label">Fase 3</div>
+              </div>
+              <div class="bar" style="height: 88%;">
+                <div class="bar-value">50k</div>
+                <div class="bar-label">Fase 4</div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <p>
+              La clave del modelo no es solo adquirir usuarios, sino aumentar densidad local,
+              frecuencia de uso y valor para actores profesionales dentro de la red.
+            </p>
+            <ul>
+              <li>Más ciudades activas aumentan la utilidad del mapa y el descubrimiento.</li>
+              <li>Más eventos aumentan frecuencia y recurrencia.</li>
+              <li>Más contexto social mejora confianza y conversión.</li>
+              <li>Más perfiles profesionales abren líneas de monetización estables.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="footer-note">
+          Proyección ilustrativa. Cambiar por forecast validado antes de reuniones formales.
+        </div>
+      </section>
+
+      <section class="slide">
+        <p class="kicker">Fundraising</p>
+        <h2>Capital para acelerar producto, distribución y densidad de red.</h2>
+        <div class="grid-2">
+          <div>
+            <p>
+              Eventro busca partners estratégicos e inversión para consolidar la experiencia,
+              acelerar crecimiento local y convertir una plataforma funcional en una categoría
+              fuerte dentro del espacio social y de eventos.
+            </p>
+            <p class="quote">
+              La oportunidad no es solo organizar eventos mejor. Es construir la capa social que
+              hace que los eventos generen comunidad, recurrencia y valor local.
+            </p>
+          </div>
+          <div class="grid-2" style="grid-template-columns: 1fr 1fr;">
+            <div class="card">
+              <h3>Producto</h3>
+              <p>Iteración, UX, escalabilidad y fiabilidad operativa.</p>
+            </div>
+            <div class="card">
+              <h3>Crecimiento</h3>
+              <p>Activación local, partnerships y adquisición temprana.</p>
+            </div>
+            <div class="card">
+              <h3>Marca</h3>
+              <p>Posicionamiento, comunidad y presencia por ciudad.</p>
+            </div>
+            <div class="card">
+              <h3>Infraestructura</h3>
+              <p>Costes operativos, despliegue y capacidad de escala.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide">
+        <p class="kicker">Closing</p>
+        <h1>Eventro no es solo una app para ver planes.</h1>
+        <p class="quote">
+          Es la plataforma donde los eventos se convierten en relaciones, comunidad y actividad local.
+        </p>
+        <p style="margin-top: 32px;">
+          EVENTRO<br />
+          Descubrir. Conectar. Vivir.
+        </p>
+      </section>
+    </main>
+  </body>
+</html>
