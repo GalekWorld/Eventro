@@ -7,7 +7,7 @@ const env = process.env as Record<string, string | undefined>;
 env.NODE_ENV = env.NODE_ENV ?? mode;
 
 const dev = env.NODE_ENV !== "production";
-const hostname = env.HOSTNAME ?? "0.0.0.0";
+const hostname = env.HOST ?? "0.0.0.0";
 const port = Number(env.PORT ?? 3000);
 
 async function main() {
