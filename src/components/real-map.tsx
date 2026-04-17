@@ -1,11 +1,10 @@
 "use client";
 
-import type { MouseEvent as ReactMouseEvent, TouchEvent as ReactTouchEvent } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import L from "leaflet";
-import { LocateFixed } from "lucide-react";
-import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
+import { LocateFixed, X } from "lucide-react";
+import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from "react-leaflet";
 import MarkerClusterGroup from "react-leaflet-cluster";
 import { FollowToggleButton } from "@/components/follow-toggle-button";
 import { getEventPath } from "@/lib/event-path";
@@ -70,7 +69,7 @@ function createAvatarMarker(point: RealMapPoint) {
   }
 
   const theme = getMarkerTheme(point.type);
-  const fallback = escapeHtml(point.fallbackText?.slice(0, 1).toUpperCase() ?? "•");
+  const fallback = escapeHtml(point.fallbackText?.slice(0, 1).toUpperCase() ?? "*");
   const safeLabel = escapeHtml(point.label);
   const inner = safeImageUrl
     ? `<img src="${escapeHtml(safeImageUrl)}" alt="${safeLabel}" style="width:100%;height:100%;object-fit:cover;border-radius:9999px;" />`
@@ -126,8 +125,8 @@ function RecenterControl() {
           type="button"
           onClick={recenterOnUser}
           className="flex h-11 w-11 items-center justify-center bg-white text-slate-700 transition hover:bg-neutral-50 disabled:cursor-wait"
-          aria-label="Centrar en tu posición"
-          title="Centrar en tu posición"
+          aria-label="Centrar en tu posicion"
+          title="Centrar en tu posicion"
           disabled={isLocating}
         >
           <LocateFixed className={`h-5 w-5 ${isLocating ? "animate-pulse" : ""}`} />
@@ -137,33 +136,126 @@ function RecenterControl() {
   );
 }
 
-function PopupContent({
-  children,
-  stopPopupPropagation,
+function MapInteractionLayer({
+  selectedPoint,
+  onCloseSelectedPoint,
 }: {
-  children: React.ReactNode;
-  stopPopupPropagation: (event: ReactMouseEvent<HTMLDivElement> | ReactTouchEvent<HTMLDivElement>) => void;
+  selectedPoint: RealMapPoint | null;
+  onCloseSelectedPoint: () => void;
 }) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  useMapEvents({
+    click() {
+      if (selectedPoint) {
+        onCloseSelectedPoint();
+      }
+    },
+    dragstart() {
+      if (selectedPoint) {
+        onCloseSelectedPoint();
+      }
+    },
+  });
 
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
+  return null;
+}
 
-    L.DomEvent.disableClickPropagation(container);
-    L.DomEvent.disableScrollPropagation(container);
-  }, []);
-
+function PointCard({
+  point,
+  mobile,
+  onClose,
+}: {
+  point: RealMapPoint;
+  mobile: boolean;
+  onClose?: () => void;
+}) {
   return (
-    <div
-      ref={containerRef}
-      className="max-h-[58vh] min-w-[240px] max-w-[300px] overflow-y-auto pr-1 sm:min-w-[280px]"
-      onClickCapture={stopPopupPropagation}
-      onMouseDownCapture={stopPopupPropagation}
-      onTouchStartCapture={stopPopupPropagation}
-      onTouchEndCapture={stopPopupPropagation}
-    >
-      {children}
+    <div className={`${mobile ? "max-h-[42svh]" : "max-h-[58vh] min-w-[240px] max-w-[300px] sm:min-w-[280px]"} overflow-y-auto pr-1`}>
+      {mobile && onClose ? (
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <p className="text-sm font-semibold text-slate-950">Detalle</p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-neutral-200 bg-white text-slate-500"
+            aria-label="Cerrar detalle"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      ) : null}
+
+      {point.imageUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={point.imageUrl} alt={point.label} className="mb-3 h-32 w-full rounded-xl object-cover" loading="lazy" decoding="async" />
+      ) : null}
+
+      {point.highlightLabel ? (
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{point.highlightLabel}</p>
+      ) : null}
+
+      <p className="font-semibold text-slate-950">{point.label}</p>
+      <p className="mt-1 text-sm text-slate-600">{point.subtitle}</p>
+
+      {point.detailTitle ? (
+        <div className="mt-3 rounded-2xl bg-neutral-50 p-3">
+          <p className="text-sm font-semibold text-slate-950">{point.detailTitle}</p>
+          {point.detailDate ? <p className="mt-1 text-xs text-slate-500">{point.detailDate}</p> : null}
+          {point.detailPrice ? <p className="mt-1 text-xs font-medium text-slate-700">{point.detailPrice}</p> : null}
+        </div>
+      ) : null}
+
+      {point.eventPreviews?.length ? (
+        <div className="mt-3 flex gap-3 overflow-x-auto pb-1">
+          {point.eventPreviews.map((event) => (
+            <Link key={event.id} href={getEventPath(event)} className="min-w-[180px] rounded-2xl border border-neutral-200 bg-white p-2.5">
+              {event.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={event.imageUrl} alt={event.title} className="mb-2 h-20 w-full rounded-xl object-cover" loading="lazy" decoding="async" />
+              ) : null}
+              <p className="line-clamp-1 text-sm font-semibold text-slate-950">{event.title}</p>
+              <p className="mt-1 text-xs text-slate-500">{event.dateLabel}</p>
+              <p className="mt-1 text-xs font-medium text-slate-700">{event.priceLabel}</p>
+            </Link>
+          ))}
+        </div>
+      ) : null}
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        {point.href ? (
+          <Link href={point.href} className="inline-flex rounded-xl bg-sky-500 px-3 py-2 text-sm font-medium text-white">
+            {point.ctaLabel ?? "Abrir"}
+          </Link>
+        ) : null}
+
+        {point.profileHref ? (
+          <Link href={point.profileHref} className="inline-flex rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-slate-700">
+            Ver perfil
+          </Link>
+        ) : null}
+
+        {point.followUserId ? (
+          <FollowToggleButton
+            targetUserId={point.followUserId}
+            redirectPath={point.followRedirectPath ?? "/map"}
+            username={point.label}
+            initialFollowing={false}
+            idleLabel="Seguir local"
+            activeLabel="Siguiendo"
+            className="inline-flex rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-slate-700"
+          />
+        ) : null}
+
+        {point.directionsUrl ? (
+          <Link
+            href={point.directionsUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-slate-700"
+          >
+            Como llegar
+          </Link>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -182,6 +274,7 @@ export function RealMap({
   enableClustering?: boolean;
 }) {
   const [isTouchDevice, setIsTouchDevice] = useState(false);
+  const [selectedPointId, setSelectedPointId] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -199,97 +292,39 @@ export function RealMap({
     };
   }, []);
 
-  function stopPopupPropagation(event: ReactMouseEvent<HTMLDivElement> | ReactTouchEvent<HTMLDivElement>) {
-    event.stopPropagation();
-  }
+  const selectedPoint = selectedPointId ? points.find((point) => point.id === selectedPointId) ?? null : null;
 
   const markerNodes = useMemo(
     () =>
-      points.map((point) => (
-        <Marker key={point.id} position={[point.latitude, point.longitude]} icon={createAvatarMarker(point)}>
-          <Popup autoClose={false} closeOnClick={false} keepInView autoPanPadding={[24, 24]}>
-            <PopupContent stopPopupPropagation={stopPopupPropagation}>
-              {point.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={point.imageUrl} alt={point.label} className="mb-3 h-32 w-full rounded-xl object-cover" loading="lazy" decoding="async" />
-              ) : null}
+      points.map((point) => {
+        const marker = (
+          <Marker
+            key={point.id}
+            position={[point.latitude, point.longitude]}
+            icon={createAvatarMarker(point)}
+            eventHandlers={{
+              click: () => {
+                if (isTouchDevice) {
+                  setSelectedPointId(point.id);
+                }
+              },
+            }}
+          >
+            {!isTouchDevice ? (
+              <Popup autoClose={false} closeOnClick={false} keepInView autoPanPadding={[24, 24]}>
+                <PointCard point={point} mobile={false} />
+              </Popup>
+            ) : null}
+          </Marker>
+        );
 
-              {point.highlightLabel ? (
-                <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{point.highlightLabel}</p>
-              ) : null}
-
-              <p className="font-semibold text-slate-950">{point.label}</p>
-              <p className="mt-1 text-sm text-slate-600">{point.subtitle}</p>
-
-              {point.detailTitle ? (
-                <div className="mt-3 rounded-2xl bg-neutral-50 p-3">
-                  <p className="text-sm font-semibold text-slate-950">{point.detailTitle}</p>
-                  {point.detailDate ? <p className="mt-1 text-xs text-slate-500">{point.detailDate}</p> : null}
-                  {point.detailPrice ? <p className="mt-1 text-xs font-medium text-slate-700">{point.detailPrice}</p> : null}
-                </div>
-              ) : null}
-
-              {point.eventPreviews?.length ? (
-                <div className="mt-3 flex gap-3 overflow-x-auto pb-1">
-                  {point.eventPreviews.map((event) => (
-                    <Link key={event.id} href={getEventPath(event)} className="min-w-[180px] rounded-2xl border border-neutral-200 bg-white p-2.5">
-                      {event.imageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={event.imageUrl} alt={event.title} className="mb-2 h-20 w-full rounded-xl object-cover" loading="lazy" decoding="async" />
-                      ) : null}
-                      <p className="line-clamp-1 text-sm font-semibold text-slate-950">{event.title}</p>
-                      <p className="mt-1 text-xs text-slate-500">{event.dateLabel}</p>
-                      <p className="mt-1 text-xs font-medium text-slate-700">{event.priceLabel}</p>
-                    </Link>
-                  ))}
-                </div>
-              ) : null}
-
-              <div className="mt-3 flex flex-wrap gap-2">
-                {point.href ? (
-                  <Link href={point.href} className="inline-flex rounded-xl bg-sky-500 px-3 py-2 text-sm font-medium text-white">
-                    {point.ctaLabel ?? "Abrir"}
-                  </Link>
-                ) : null}
-
-                {point.profileHref ? (
-                  <Link href={point.profileHref} className="inline-flex rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-slate-700">
-                    Ver perfil
-                  </Link>
-                ) : null}
-
-                {point.followUserId ? (
-                  <FollowToggleButton
-                    targetUserId={point.followUserId}
-                    redirectPath={point.followRedirectPath ?? "/map"}
-                    username={point.label}
-                    initialFollowing={false}
-                    idleLabel="Seguir local"
-                    activeLabel="Siguiendo"
-                    className="inline-flex rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-slate-700"
-                  />
-                ) : null}
-
-                {point.directionsUrl ? (
-                  <Link
-                    href={point.directionsUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-slate-700"
-                  >
-                    Cómo llegar
-                  </Link>
-                ) : null}
-              </div>
-            </PopupContent>
-          </Popup>
-        </Marker>
-      )),
-    [points],
+        return marker;
+      }),
+    [isTouchDevice, points],
   );
 
   return (
-    <div className={`overflow-hidden rounded-[24px] border border-neutral-200 bg-white ${heightClassName}`}>
+    <div className={`relative overflow-hidden rounded-[24px] border border-neutral-200 bg-white ${heightClassName}`}>
       <MapContainer
         center={[center.latitude, center.longitude]}
         zoom={zoom}
@@ -304,9 +339,18 @@ export function RealMap({
         />
 
         <RecenterControl />
+        <MapInteractionLayer selectedPoint={selectedPoint} onCloseSelectedPoint={() => setSelectedPointId(null)} />
 
         {enableClustering && !isTouchDevice && points.length > 1 ? <MarkerClusterGroup chunkedLoading>{markerNodes}</MarkerClusterGroup> : markerNodes}
       </MapContainer>
+
+      {isTouchDevice && selectedPoint ? (
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[1000] p-3">
+          <div className="pointer-events-auto rounded-[24px] border border-neutral-200 bg-white p-4 shadow-2xl">
+            <PointCard point={selectedPoint} mobile onClose={() => setSelectedPointId(null)} />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

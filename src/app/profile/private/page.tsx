@@ -135,6 +135,8 @@ export default async function PrivateProfilePage() {
     quickLinks.push({ href: "/scanner", label: "Escáner", icon: QrCode });
   }
 
+  quickLinks.push({ href: "/legal/privacy", label: "Privacidad", icon: Users });
+
   return (
     <div className="mx-auto max-w-[935px] space-y-4">
       {!isVenueProfile ? <LiveLocationSync enabled={profile.locationSharingMode !== "GHOST"} /> : null}
