@@ -31,9 +31,14 @@ export function DirectConversationThread({
   currentUserRole: string;
 }) {
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const mountedRef = useRef(false);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    bottomRef.current?.scrollIntoView({
+      behavior: mountedRef.current ? "smooth" : "auto",
+      block: "end",
+    });
+    mountedRef.current = true;
   }, [messages.length]);
 
   const renderedMessages = useMemo(

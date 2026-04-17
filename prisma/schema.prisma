@@ -655,6 +655,8 @@ model DirectConversation {
 
   @@unique([userAId, userBId])
   @@index([updatedAt])
+  @@index([userAId, updatedAt])
+  @@index([userBId, updatedAt])
 }
 
 model DirectMessage {
@@ -672,6 +674,8 @@ model DirectMessage {
 
   @@index([conversationId, createdAt])
   @@index([senderId, createdAt])
+  @@index([conversationId, hiddenAt, createdAt])
+  @@index([conversationId, senderId, readAt, hiddenAt, createdAt])
 }
 
 model Notification {

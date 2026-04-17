@@ -6,17 +6,14 @@ import { requireAuth } from "@/lib/permissions";
 import { UserAvatar } from "@/components/user-avatar";
 import { VerifiedBadge } from "@/components/verified-badge";
 import { getVerificationTone, isPubliclyVerified } from "@/lib/user-display";
-import { DirectMessageForm } from "@/components/forms/direct-message-form";
-import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { isBlockedBetween } from "@/lib/privacy";
-import { markDirectConversationReadAction } from "@/app/actions/social";
 import { DirectConversationClient } from "@/components/direct-conversation-client";
+
+const INITIAL_DIRECT_MESSAGES = 120;
 
 export default async function DirectConversationPage({ params }: { params: Promise<{ conversationId: string }> }) {
   const { conversationId } = await params;
   const currentUser = await requireAuth();
-
-  await markDirectConversationReadAction(conversationId);
 
   const conversation = await db.directConversation.findUnique({
     where: { id: conversationId },
@@ -43,8 +40,13 @@ export default async function DirectConversationPage({ params }: { params: Promi
       },
       messages: {
         where: { hiddenAt: null },
-        orderBy: { createdAt: "asc" },
-        include: {
+        orderBy: { createdAt: "desc" },
+        take: INITIAL_DIRECT_MESSAGES,
+        select: {
+          id: true,
+          body: true,
+          readAt: true,
+          createdAt: true,
           sender: {
             select: {
               id: true,
@@ -68,8 +70,6 @@ export default async function DirectConversationPage({ params }: { params: Promi
 
   return (
     <div className="mx-auto max-w-[980px] space-y-4">
-      <RealtimeRefresh topics={[`user:${currentUser.id}`, `conversation:${conversation.id}`]} fallbackIntervalMs={2500} />
-
       <section className="chat-shell app-card overflow-hidden">
         <div className="chat-header border-b border-neutral-200 px-4 py-4 sm:px-5">
           <div className="flex flex-wrap items-center justify-between gap-4">
@@ -103,12 +103,12 @@ export default async function DirectConversationPage({ params }: { params: Promi
           </div>
         </div>
         <DirectConversationClient
-          conversationId={conversation.id}
-          currentUserId={currentUser.id}
-          currentUserRole={currentUser.role}
-          otherUserLabel={otherUser.username ?? "La otra persona"}
-          initialMessages={conversation.messages}
-        />
+        conversationId={conversation.id}
+        currentUserId={currentUser.id}
+        currentUserRole={currentUser.role}
+        otherUserLabel={otherUser.username ?? "La otra persona"}
+        initialMessages={conversation.messages.slice().reverse()}
+      />
       </section>
     </div>
   );

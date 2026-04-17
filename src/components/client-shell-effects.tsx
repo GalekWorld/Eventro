@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { RoutePrefetch } from "@/components/route-prefetch";
 
 const ServiceWorkerRegister = dynamic(
   () => import("@/components/service-worker-register").then((mod) => mod.ServiceWorkerRegister),
@@ -21,6 +22,7 @@ export function ClientShellEffects({
 }) {
   return (
     <>
+      <RoutePrefetch />
       {withServiceWorker ? <ServiceWorkerRegister /> : null}
       {userId ? <BrowserNotificationListener userId={userId} /> : null}
     </>

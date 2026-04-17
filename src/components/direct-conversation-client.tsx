@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { markDirectConversationReadAction } from "@/app/actions/social";
 import { TypingIndicator } from "@/components/typing-indicator";
 import { DirectConversationThread } from "@/components/direct-conversation-thread";
 import { DirectMessageForm } from "@/components/forms/direct-message-form";
@@ -30,9 +30,9 @@ export function DirectConversationClient({
   otherUserLabel: string;
   initialMessages: ClientMessage[];
 }) {
-  const router = useRouter();
   const [messages, setMessages] = useState<ClientMessage[]>(initialMessages);
-  const { lastEvent } = useRealtimeTopic([`conversation:${conversationId}`]);
+  const { lastEvent } = useRealtimeTopic(useMemo(() => [`conversation:${conversationId}`], [conversationId]));
+  const lastMarkedMessageIdRef = useRef<string | null>(null);
 
   function upsertMessage(message: {
     id: string;
@@ -60,9 +60,43 @@ export function DirectConversationClient({
     });
   }
 
+  function removeMessage(messageId: string) {
+    setMessages((current) => current.filter((entry) => entry.id !== messageId));
+  }
+
+  const markOutgoingAsRead = useCallback(() => {
+    setMessages((current) =>
+      current.map((entry) =>
+        entry.sender.id === currentUserId && entry.readAt == null
+          ? {
+              ...entry,
+              readAt: new Date().toISOString(),
+            }
+          : entry,
+        ),
+    );
+  }, [currentUserId]);
+
   useEffect(() => {
     setMessages(initialMessages);
   }, [initialMessages]);
+
+  useEffect(() => {
+    const latestUnreadFromOtherUser = [...messages]
+      .reverse()
+      .find((message) => message.sender.id !== currentUserId && message.readAt == null);
+
+    if (!latestUnreadFromOtherUser) {
+      return;
+    }
+
+    if (lastMarkedMessageIdRef.current === latestUnreadFromOtherUser.id) {
+      return;
+    }
+
+    lastMarkedMessageIdRef.current = latestUnreadFromOtherUser.id;
+    void markDirectConversationReadAction(conversationId);
+  }, [conversationId, currentUserId, messages]);
 
   useEffect(() => {
     if (!lastEvent) return;
@@ -77,20 +111,16 @@ export function DirectConversationClient({
       return;
     }
 
-    if (lastEvent.type === "conversation:message-delete" || lastEvent.type === "conversation:read") {
-      router.refresh();
+    if (lastEvent.type === "conversation:message-delete" && lastEvent.entityId) {
+      removeMessage(String(lastEvent.entityId));
+      return;
     }
-  }, [lastEvent, router]);
 
-  useEffect(() => {
-    const interval = window.setInterval(() => {
-      if (document.visibilityState === "visible") {
-        router.refresh();
-      }
-    }, 1200);
-
-    return () => window.clearInterval(interval);
-  }, [router]);
+    if (lastEvent.type === "conversation:read" && lastEvent.actorId && lastEvent.actorId !== currentUserId) {
+      markOutgoingAsRead();
+      return;
+    }
+  }, [currentUserId, lastEvent, markOutgoingAsRead]);
 
   return (
     <>

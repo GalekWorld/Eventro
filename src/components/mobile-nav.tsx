@@ -1,7 +1,11 @@
+"use client";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Compass, Map, MessageCircleMore, Search, User } from "lucide-react";
 
 export function MobileNav() {
+  const router = useRouter();
   const items = [
     { href: "/dashboard", label: "Inicio", icon: Compass },
     { href: "/search", label: "Buscar", icon: Search },
@@ -20,6 +24,10 @@ export function MobileNav() {
             <Link
               key={item.href}
               href={item.href}
+              prefetch
+              onMouseEnter={() => router.prefetch(item.href)}
+              onFocus={() => router.prefetch(item.href)}
+              onTouchStart={() => router.prefetch(item.href)}
               className="flex min-h-[58px] flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2 text-[11px] font-medium text-slate-500 transition hover:bg-neutral-100 hover:text-slate-950"
             >
               <Icon className="h-5 w-5" />

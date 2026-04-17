@@ -1623,6 +1623,11 @@ export async function markDirectConversationReadAction(conversationId: string) {
   });
 
   const otherUserId = conversation.userAId === currentUser.id ? conversation.userBId : conversation.userAId;
+  publishRealtimeEvent([conversationTopic(conversationId)], {
+    type: "conversation:read",
+    entityId: conversationId,
+    actorId: currentUser.id,
+  });
   publishUserRefresh([currentUser.id, otherUserId], "conversation:read", conversationId);
 }
 

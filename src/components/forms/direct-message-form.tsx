@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { LoaderCircle, Plus, SendHorizonal, Sparkles } from "lucide-react";
 import type { ActionState } from "@/lib/http";
 import { sendDirectMessageAction } from "@/app/actions/social";
@@ -17,7 +16,6 @@ export function DirectMessageForm({
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const router = useRouter();
   const { send } = useRealtimeTopic(useMemo(() => [`conversation:${conversationId}`], [conversationId]));
   const canSend = body.trim().length > 0 && !isSubmitting;
 
@@ -55,8 +53,6 @@ export function DirectMessageForm({
           senderId: String(result.data.senderId),
         });
       }
-
-      router.refresh();
     } catch {
       setBody(previousBody);
       setError("No se pudo enviar el mensaje privado.");

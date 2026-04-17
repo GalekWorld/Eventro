@@ -93,6 +93,20 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
         },
       }).then(Boolean)
     : false;
+  const existingConversationId =
+    currentUser && !isOwnProfile
+      ? await db.directConversation.findFirst({
+          where: {
+            OR: [
+              { userAId: currentUser.id, userBId: profile.id },
+              { userAId: profile.id, userBId: currentUser.id },
+            ],
+          },
+          select: {
+            id: true,
+          },
+        }).then((conversation) => conversation?.id ?? null)
+      : null;
 
   return (
     <div className="mx-auto max-w-[935px] space-y-4">
@@ -119,12 +133,18 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
                       {isFriend ? "Amigos" : isFollowing ? "Siguiendo" : "Seguir"}
                     </button>
                   </form>
-                  <form action={openDirectConversationAction}>
-                    <input type="hidden" name="targetUserId" value={profile.id} />
-                    <button className="app-button-secondary" type="submit">
+                  {existingConversationId ? (
+                    <Link href={`/messages/${existingConversationId}`} className="app-button-secondary">
                       Mensaje
-                    </button>
-                  </form>
+                    </Link>
+                  ) : (
+                    <form action={openDirectConversationAction}>
+                      <input type="hidden" name="targetUserId" value={profile.id} />
+                      <button className="app-button-secondary" type="submit">
+                        Mensaje
+                      </button>
+                    </form>
+                  )}
                   <form action={blockUserAction}>
                     <input type="hidden" name="targetUserId" value={profile.id} />
                     <input type="hidden" name="redirectPath" value={`/u/${profile.username}`} />
