@@ -1,9 +1,11 @@
 import { randomBytes } from "crypto";
-import { PaymentCheckoutStatus, PaymentProvider, Prisma, TicketAccessAction, UserRole } from "@prisma/client";
+import { NotificationType, PaymentCheckoutStatus, PaymentProvider, Prisma, TicketAccessAction, UserRole } from "@prisma/client";
 import { db } from "@/lib/db";
 import { slugify } from "@/lib/slug";
 import { DEFAULT_PAYMENT_CURRENCY, calculateCheckoutAmounts } from "@/lib/payments";
 import type { CreateEventInput, EventFilters, UpdateEventBasicsInput } from "@/features/events/event.schemas";
+import { getEventPath } from "@/lib/event-path";
+import { publishRealtimeEvent, userTopic } from "@/lib/realtime";
 
 function getEventSummary(ticketTypes: CreateEventInput["ticketTypes"]) {
   const cheapestPaid = ticketTypes
@@ -21,6 +23,78 @@ function getEventSummary(ticketTypes: CreateEventInput["ticketTypes"]) {
 
 function buildTicketCode() {
   return `EVT-${randomBytes(8).toString("hex").toUpperCase()}`;
+}
+
+async function notifyMutualFriendsAboutAttendance({
+  buyerId,
+  event,
+}: {
+  buyerId: string;
+  event: {
+    id: string;
+    slug: string | null;
+    title: string;
+  };
+}) {
+  const confirmedPurchases = await db.ticketPurchase.count({
+    where: {
+      buyerId,
+      eventId: event.id,
+      status: "CONFIRMED",
+    },
+  });
+
+  if (confirmedPurchases !== 1) {
+    return;
+  }
+
+  const [buyer, following, followers] = await Promise.all([
+    db.user.findUnique({
+      where: { id: buyerId },
+      select: {
+        id: true,
+        username: true,
+        name: true,
+      },
+    }),
+    db.follow.findMany({
+      where: { followerId: buyerId },
+      select: { followingId: true },
+    }),
+    db.follow.findMany({
+      where: { followingId: buyerId },
+      select: { followerId: true },
+    }),
+  ]);
+
+  if (!buyer) return;
+
+  const followerIds = new Set(followers.map((item) => item.followerId));
+  const mutualFriendIds = following.map((item) => item.followingId).filter((id) => followerIds.has(id) && id !== buyerId);
+
+  if (mutualFriendIds.length === 0) {
+    return;
+  }
+
+  const buyerLabel = buyer.username ? `@${buyer.username}` : buyer.name ?? "Tu amigo";
+  const link = getEventPath(event);
+
+  await db.notification.createMany({
+    data: mutualFriendIds.map((recipientId) => ({
+      recipientId,
+      actorId: buyer.id,
+      type: NotificationType.FOLLOW,
+      title: `${buyerLabel} va a esta fiesta`,
+      body: `${buyerLabel} va a ${event.title}, no te la pierdas!`,
+      link,
+    })),
+    skipDuplicates: false,
+  }).catch(() => null);
+
+  publishRealtimeEvent(mutualFriendIds.map((userId) => userTopic(userId)), {
+    type: "notification:new",
+    entityId: event.id,
+  });
 }
 
 async function userHasConfirmedEventAccess({
@@ -557,7 +631,7 @@ export async function purchaseTicketsForEvent({
   checkoutId?: string;
   allowOwnerComplimentary?: boolean;
 }) {
-  return db.$transaction(async (tx) => {
+  const result = await db.$transaction(async (tx) => {
     const ticketType = await tx.eventTicketType.findFirst({
       where: {
         id: ticketTypeId,
@@ -666,6 +740,15 @@ export async function purchaseTicketsForEvent({
       ticketType,
     };
   });
+
+  if (result.event.ownerId !== buyerId) {
+    await notifyMutualFriendsAboutAttendance({
+      buyerId,
+      event: result.event,
+    });
+  }
+
+  return result;
 }
 
 export async function prepareTicketCheckout({

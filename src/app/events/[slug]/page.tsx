@@ -11,6 +11,8 @@ import { registerEventView } from "@/lib/analytics";
 import { EventShareButton } from "@/components/event-share-button";
 import { getPrimaryTicketSummary } from "@/lib/event-pricing";
 import { hasVipSpaceDetails, parseVipSpace } from "@/lib/vip-space";
+import { getMutualFriendIds } from "@/lib/social-graph";
+import { db } from "@/lib/db";
 
 export default async function EventDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -32,6 +34,33 @@ export default async function EventDetailPage({ params }: { params: Promise<{ sl
   const canSeeInventory = Boolean(user && (user.role === "ADMIN" || user.id === event.owner.id));
   const vipSpace = parseVipSpace(event.reservationInfo);
   const vipContactPhone = event.owner.venueRequest?.phone?.trim() ?? "";
+  const mutualFriendIds = user ? await getMutualFriendIds(user.id) : [];
+  const friendAttendees = user && mutualFriendIds.length
+    ? await db.ticketPurchase.findMany({
+        where: {
+          eventId: event.id,
+          status: "CONFIRMED",
+          buyerId: { in: mutualFriendIds },
+        },
+        distinct: ["buyerId"],
+        select: {
+          buyer: {
+            select: {
+              username: true,
+              name: true,
+            },
+          },
+        },
+        take: 12,
+      })
+    : [];
+  const friendAttendeeLabels = friendAttendees
+    .map((entry) => entry.buyer.username ? `@${entry.buyer.username}` : entry.buyer.name ?? "Un amigo")
+    .filter(Boolean);
+  const friendAttendeeMessage =
+    friendAttendeeLabels.length > 0
+      ? `${friendAttendeeLabels.join(", ")} (${friendAttendeeLabels.length === 1 ? "Tu amigo con entrada ahi" : "Todos tus amigos con entrada ahi"}) van a esta fiesta`
+      : null;
   const ticketLabel =
     event.ticketCapacity == null
       ? "Aforo sin límite definido"
@@ -60,6 +89,11 @@ export default async function EventDetailPage({ params }: { params: Promise<{ sl
           </div>
 
           {pricing.message ? <p className="text-sm font-medium text-slate-700">{pricing.message}</p> : null}
+          {friendAttendeeMessage ? (
+            <p className="text-xs font-medium text-sky-700">
+              {friendAttendeeMessage}
+            </p>
+          ) : null}
           {vipSpace?.adultsOnly ? <p className="text-sm font-semibold uppercase tracking-[0.16em] text-rose-600">Evento +18</p> : null}
 
           <div className="space-y-3 text-sm text-slate-600">

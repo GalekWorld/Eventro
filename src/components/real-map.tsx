@@ -181,6 +181,24 @@ export function RealMap({
   zoom?: number;
   enableClustering?: boolean;
 }) {
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const mediaQuery = window.matchMedia("(pointer: coarse)");
+    const syncTouchState = () => {
+      setIsTouchDevice(mediaQuery.matches || "ontouchstart" in window || navigator.maxTouchPoints > 0);
+    };
+
+    syncTouchState();
+    mediaQuery.addEventListener("change", syncTouchState);
+
+    return () => {
+      mediaQuery.removeEventListener("change", syncTouchState);
+    };
+  }, []);
+
   function stopPopupPropagation(event: ReactMouseEvent<HTMLDivElement> | ReactTouchEvent<HTMLDivElement>) {
     event.stopPropagation();
   }
@@ -287,7 +305,7 @@ export function RealMap({
 
         <RecenterControl />
 
-        {enableClustering && points.length > 1 ? <MarkerClusterGroup chunkedLoading>{markerNodes}</MarkerClusterGroup> : markerNodes}
+        {enableClustering && !isTouchDevice && points.length > 1 ? <MarkerClusterGroup chunkedLoading>{markerNodes}</MarkerClusterGroup> : markerNodes}
       </MapContainer>
     </div>
   );
