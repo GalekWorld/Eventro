@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ChevronLeft, ShieldCheck, Sparkles } from "lucide-react";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { requireAuth } from "@/lib/permissions";
+import { requirePageAuth } from "@/lib/permissions";
 import { UserAvatar } from "@/components/user-avatar";
 import { VerifiedBadge } from "@/components/verified-badge";
 import { getVerificationTone, isPubliclyVerified } from "@/lib/user-display";
@@ -13,7 +13,7 @@ const INITIAL_DIRECT_MESSAGES = 120;
 
 export default async function DirectConversationPage({ params }: { params: Promise<{ conversationId: string }> }) {
   const { conversationId } = await params;
-  const currentUser = await requireAuth();
+  const currentUser = await requirePageAuth();
 
   const conversation = await db.directConversation.findUnique({
     where: { id: conversationId },

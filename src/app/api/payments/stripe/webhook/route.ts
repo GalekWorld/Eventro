@@ -8,6 +8,7 @@ import {
   updatePaymentCheckoutStatus,
 } from "@/features/events/event.service";
 import { getStripeClient } from "@/lib/payments";
+import { recordSecurityEvent } from "@/lib/security-events";
 import { syncStripeConnectStatusByStripeAccountId, upsertVenueStripePayout } from "@/lib/stripe-connect";
 
 function isConfirmedSession(session: Stripe.Checkout.Session) {
@@ -52,12 +53,17 @@ export async function POST(request: Request) {
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
 
   if (!secret || !process.env.STRIPE_SECRET_KEY) {
-    return NextResponse.json({ error: "Stripe no configurado." }, { status: 503 });
+    return NextResponse.json({ error: "SERVICE_UNAVAILABLE" }, { status: 503, headers: { "Cache-Control": "no-store" } });
   }
 
   const signature = request.headers.get("stripe-signature");
   if (!signature) {
-    return NextResponse.json({ error: "Firma ausente." }, { status: 400 });
+    await recordSecurityEvent({
+      type: "stripe_webhook_rejected",
+      level: "WARN",
+      message: "Webhook Stripe sin firma.",
+    });
+    return NextResponse.json({ error: "BAD_REQUEST" }, { status: 400, headers: { "Cache-Control": "no-store" } });
   }
 
   const rawBody = await request.text();
@@ -68,7 +74,12 @@ export async function POST(request: Request) {
   try {
     event = stripe.webhooks.constructEvent(rawBody, signature, secret);
   } catch {
-    return NextResponse.json({ error: "Firma invalida." }, { status: 400 });
+    await recordSecurityEvent({
+      type: "stripe_webhook_rejected",
+      level: "WARN",
+      message: "Webhook Stripe con firma invalida.",
+    });
+    return NextResponse.json({ error: "BAD_REQUEST" }, { status: 400, headers: { "Cache-Control": "no-store" } });
   }
 
   if (event.type === "checkout.session.completed") {
@@ -260,5 +271,5 @@ export async function POST(request: Request) {
     revalidatePath("/local/payouts");
   }
 
-  return NextResponse.json({ received: true });
+  return NextResponse.json({ received: true }, { headers: { "Cache-Control": "no-store" } });
 }

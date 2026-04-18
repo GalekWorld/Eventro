@@ -1,4 +1,4 @@
-import { randomBytes } from "crypto";
+import { createHash, randomBytes } from "crypto";
 import { cookies } from "next/headers";
 import { cache } from "react";
 import type { UserRole } from "@prisma/client";
@@ -10,6 +10,10 @@ async function getCookieStore(): Promise<CookieStore> {
   return cookies();
 }
 
+function hashSessionToken(token: string) {
+  return createHash("sha256").update(token).digest("hex");
+}
+
 export async function getSessionToken() {
   const cookieStore = await getCookieStore();
   return cookieStore.get("session")?.value ?? null;
@@ -18,17 +22,37 @@ export async function getSessionToken() {
 const getUserFromSessionToken = cache(async (sessionToken?: string | null) => {
   if (!sessionToken) return null;
 
-  const session = await prisma.session.findUnique({
-    where: { token: sessionToken },
+  const hashedToken = hashSessionToken(sessionToken);
+  let session = await prisma.session.findUnique({
+    where: { token: hashedToken },
     include: { user: true },
   });
+
+  if (!session) {
+    const legacySession = await prisma.session.findUnique({
+      where: { token: sessionToken },
+      include: { user: true },
+    });
+
+    if (legacySession) {
+      await prisma.session
+        .update({
+          where: { id: legacySession.id },
+          data: { token: hashedToken },
+        })
+        .catch(() => null);
+
+      session = {
+        ...legacySession,
+        token: hashedToken,
+      };
+    }
+  }
 
   if (!session) return null;
 
   if (session.expiresAt < new Date()) {
-    await prisma.session.delete({
-      where: { token: sessionToken },
-    }).catch(() => null);
+    await deleteSession(sessionToken).catch(() => null);
 
     const cookieStore = await getCookieStore();
     cookieStore.delete("session");
@@ -58,9 +82,7 @@ export async function requireUser() {
 
   if (user.suspendedAt) {
     if (sessionToken) {
-      await prisma.session.delete({
-        where: { token: sessionToken },
-      }).catch(() => null);
+      await deleteSession(sessionToken).catch(() => null);
     }
 
     const cookieStore = await getCookieStore();
@@ -94,7 +116,8 @@ export function createSessionToken() {
 }
 
 export async function createSession(userId: string, days = 7) {
-  const token = createSessionToken();
+  const rawToken = createSessionToken();
+  const tokenHash = hashSessionToken(rawToken);
   const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
 
   await prisma.session.deleteMany({
@@ -103,13 +126,13 @@ export async function createSession(userId: string, days = 7) {
 
   await prisma.session.create({
     data: {
-      token,
+      token: tokenHash,
       userId,
       expiresAt,
     },
   });
 
-  return { token, expiresAt };
+  return { token: rawToken, expiresAt };
 }
 
 export async function setSessionCookies(token: string, _role?: string, maxAgeDays = 7) {
@@ -139,7 +162,13 @@ export async function clearSessionCookie() {
 }
 
 export async function deleteSession(token: string) {
-  await prisma.session.delete({
-    where: { token },
-  }).catch(() => null);
+  await prisma.session
+    .deleteMany({
+      where: {
+        token: {
+          in: [token, hashSessionToken(token)],
+        },
+      },
+    })
+    .catch(() => null);
 }

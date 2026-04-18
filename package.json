@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "tsx server.ts start",
     "lint": "next lint",
+    "test": "node --experimental-strip-types tests/run-tests.ts",
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",

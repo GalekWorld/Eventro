@@ -13,6 +13,8 @@ import { requireAuth } from "@/lib/permissions";
 import { sendEmail } from "@/lib/email";
 import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
+import { getAppBaseUrl } from "@/lib/app-url";
+import { recordSecurityEvent } from "@/lib/security-events";
 
 export async function registerAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
   try {
@@ -96,7 +98,7 @@ export async function sendPasswordResetEmailAction(
     });
 
     const { token } = await createPasswordResetToken(user.id);
-    const baseUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const baseUrl = getAppBaseUrl();
     const resetUrl = `${baseUrl}/reset-password?token=${encodeURIComponent(token)}`;
 
     await sendEmail({
@@ -134,6 +136,14 @@ export async function resetPasswordWithTokenAction(
     const token = String(formData.get("token") ?? "").trim();
     const password = String(formData.get("password") ?? "");
     const confirmPassword = String(formData.get("confirmPassword") ?? "");
+    const tokenFingerprint = token ? token.slice(0, 12) : "missing";
+
+    await assertRateLimit({
+      key: `password-reset:consume:${tokenFingerprint}`,
+      limit: 8,
+      windowMs: 30 * 60 * 1000,
+      message: "Demasiados intentos para restablecer la contraseña. Espera un poco.",
+    });
 
     if (!token) {
       return { error: "El enlace no es válido." };
@@ -149,6 +159,12 @@ export async function resetPasswordWithTokenAction(
 
     const record = await getPasswordResetTokenRecord(token);
     if (!record) {
+      await recordSecurityEvent({
+        type: "password_reset_invalid_token",
+        level: "WARN",
+        key: tokenFingerprint,
+        message: "Se ha intentado usar un token de recuperación inválido o expirado.",
+      });
       return { error: "El enlace ha expirado o ya no es válido." };
     }
 
@@ -166,6 +182,14 @@ export async function resetPasswordWithTokenAction(
         where: { userId: record.userId },
       }),
     ]);
+
+    await recordSecurityEvent({
+      type: "password_reset_completed",
+      level: "INFO",
+      key: record.user.email,
+      userId: record.userId,
+      message: "La contraseña se ha restablecido y las sesiones activas se han revocado.",
+    });
 
     revalidatePath("/login");
     return { success: "Contraseña actualizada. Ya puedes iniciar sesión con la nueva." };

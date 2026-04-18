@@ -397,55 +397,59 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
       <LiveLocationSync enabled={currentUser.role !== "VENUE" && currentUser.role !== "VENUE_PENDING" && currentUser.locationSharingMode !== "GHOST"} />
 
       <section className="app-card p-4 sm:p-5">
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h1 className="app-screen-title">Mapa</h1>
-              <p className="mt-2 app-screen-subtitle">{rangeWindow.helper}</p>
-            </div>
-            <Link href="/profile/private" className="app-button-secondary">
-              Ajustar ubicacion
-            </Link>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="app-screen-title">Mapa</h1>
+            <p className="mt-2 app-screen-subtitle">{rangeWindow.helper}</p>
           </div>
+          <details className="w-full sm:w-auto sm:min-w-[320px]">
+            <summary className="flex cursor-pointer list-none items-center justify-between rounded-[22px] border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-neutral-100">
+              <span>Filtros</span>
+              <span className="app-pill">{rangeOptions.find((option) => option.value === range)?.label ?? "7 dias"}</span>
+            </summary>
 
-          {!isVenueUser ? (
-            <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-3">
-              <MapLocationButton />
+            <div className="mt-3 grid gap-3 rounded-[22px] border border-neutral-200 bg-white p-3 sm:p-4">
+              <div className="flex flex-wrap gap-2">
+                <Link href="/profile/private" className="app-button-secondary">
+                  Ajustar ubicacion
+                </Link>
+                {!isVenueUser ? <MapLocationButton /> : null}
+              </div>
+
+              {!currentPosition ? (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                  {isVenueUser
+                    ? "Aun no hay una ubicacion fija guardada para tu local. Puedes seguir filtrando el mapa y ajustarla despues desde el perfil privado."
+                    : "Todavia no has guardado una ubicacion exacta valida para centrar el mapa en ti. Aun asi puedes usar filtros y ver amigos o locales visibles."}
+                </div>
+              ) : null}
+
+              <div className="grid gap-2 sm:grid-cols-3">
+                {rangeOptions.map((option) => (
+                  <Link
+                    key={option.value}
+                    href={buildMapHref(option.value, cityFilter)}
+                    className={`rounded-[20px] border px-4 py-3 text-left transition ${
+                      range === option.value
+                        ? "border-sky-200 bg-sky-50 shadow-sm"
+                        : "border-neutral-200 bg-white hover:border-neutral-300 hover:bg-neutral-50"
+                    }`}
+                  >
+                    <p className="text-sm font-semibold text-slate-950">{option.label}</p>
+                    <p className="mt-1 text-xs text-slate-500">{option.helper}</p>
+                  </Link>
+                ))}
+              </div>
+
+              <form className="grid gap-3 sm:grid-cols-[1fr_auto]">
+                <CitySelect name="city" defaultValue={cityFilter} emptyLabel="Todas las ciudades" />
+                <input type="hidden" name="range" value={range} />
+                <button type="submit" className="app-button-primary">
+                  Aplicar filtro
+                </button>
+              </form>
             </div>
-          ) : null}
-
-          {!currentPosition ? (
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-              {isVenueUser
-                ? "Aun no hay una ubicacion fija guardada para tu local. Puedes seguir filtrando el mapa y ajustarla despues desde el perfil privado."
-                : "Todavia no has guardado una ubicacion exacta valida para centrar el mapa en ti. Aun asi puedes usar filtros y ver amigos o locales visibles."}
-            </div>
-          ) : null}
-
-          <div className="grid gap-2 sm:grid-cols-3">
-            {rangeOptions.map((option) => (
-              <Link
-                key={option.value}
-                href={buildMapHref(option.value, cityFilter)}
-                className={`rounded-[22px] border px-4 py-3 text-left transition ${
-                  range === option.value
-                    ? "border-sky-200 bg-sky-50 shadow-sm"
-                    : "border-neutral-200 bg-white hover:border-neutral-300 hover:bg-neutral-50"
-                }`}
-              >
-                <p className="text-sm font-semibold text-slate-950">{option.label}</p>
-                <p className="mt-1 text-xs text-slate-500">{option.helper}</p>
-              </Link>
-            ))}
-          </div>
-
-          <form className="grid gap-3 sm:grid-cols-[1fr_auto]">
-            <CitySelect name="city" defaultValue={cityFilter} emptyLabel="Todas las ciudades" />
-            <input type="hidden" name="range" value={range} />
-            <button type="submit" className="app-button-primary">
-              Aplicar filtro
-            </button>
-          </form>
+          </details>
         </div>
       </section>
 

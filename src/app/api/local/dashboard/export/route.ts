@@ -1,19 +1,22 @@
 import { NextResponse } from "next/server";
-import { requireRole } from "@/lib/permissions";
+import { getCurrentUser } from "@/lib/auth";
+import { escapeCsvCell } from "@/lib/csv";
 import {
   getRangeStart,
   getVenueDashboardDataset,
   isWithinRange,
   normalizeRange,
 } from "@/lib/local-dashboard";
-
-function escapeCsv(value: string | number | null | undefined) {
-  const text = value == null ? "" : String(value);
-  return `"${text.replaceAll('"', '""')}"`;
-}
+import { jsonError } from "@/lib/request-security";
 
 export async function GET(request: Request) {
-  const user = await requireRole(["VENUE"]);
+  const user = await getCurrentUser();
+  if (!user) {
+    return jsonError("UNAUTHORIZED", 401);
+  }
+  if (user.role !== "VENUE") {
+    return jsonError("FORBIDDEN", 403);
+  }
   const { searchParams } = new URL(request.url);
   const range = normalizeRange(searchParams.get("range") ?? undefined);
   const selectedCity = searchParams.get("city")?.trim() ?? "";
@@ -58,7 +61,7 @@ export async function GET(request: Request) {
     "visitas_evento_rango",
   ];
 
-  const csv = [header, ...rows].map((row) => row.map((cell) => escapeCsv(cell)).join(",")).join("\n");
+  const csv = [header, ...rows].map((row) => row.map((cell) => escapeCsvCell(cell)).join(",")).join("\n");
 
   return new NextResponse(csv, {
     headers: {

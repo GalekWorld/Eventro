@@ -33,7 +33,6 @@ export async function sendEmail({ to, subject, html, text }: SendEmailArgs) {
   });
 
   if (!response.ok) {
-    const body = await response.text().catch(() => "");
-    throw new Error(body || "No se pudo enviar el email.");
+    throw new Error(`No se pudo enviar el email (estado ${response.status}).`);
   }
 }

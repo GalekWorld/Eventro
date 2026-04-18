@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { MessageCircleMore, Search } from "lucide-react";
-import { requireAuth } from "@/lib/permissions";
+import { requirePageAuth } from "@/lib/permissions";
 import { db } from "@/lib/db";
 import { UserAvatar } from "@/components/user-avatar";
 import { VerifiedBadge } from "@/components/verified-badge";
@@ -19,7 +19,7 @@ function parsePage(value?: string) {
 }
 
 export default async function MessagesPage({ searchParams }: { searchParams: SearchParams }) {
-  const currentUser = await requireAuth();
+  const currentUser = await requirePageAuth();
   const params = await searchParams;
   const page = parsePage(params.page);
   const blockedUserIds = await getBlockedUserIds(currentUser.id);

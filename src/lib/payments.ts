@@ -1,4 +1,5 @@
 import Stripe from "stripe";
+import { getAppBaseUrl as getSafeAppBaseUrl } from "@/lib/app-url";
 
 export const PLATFORM_REVENUE_SHARE_RATE = 0.04;
 export const PLATFORM_MANAGEMENT_FEE_RATE = 0.03;
@@ -50,5 +51,5 @@ export function getStripeClient() {
 }
 
 export function getAppBaseUrl() {
-  return process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  return getSafeAppBaseUrl();
 }

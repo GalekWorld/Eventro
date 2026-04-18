@@ -1,149 +1,67 @@
 # Eventro
 
-Plataforma social mobile-first centrada en ocio, eventos, mapa social y gestión profesional para locales.
-
-Hecho por **GalekNetwork**.
+Eventro es una plataforma social y operativa para ocio nocturno y eventos. Reúne descubrimiento social, mapa en tiempo real, mensajería, venta y validación de entradas, herramientas para locales y panel administrativo en una sola aplicación full-stack orientada a móvil.
 
 ## Descripción
 
-Eventro une en una sola aplicación varias capas de producto:
+El proyecto está diseñado para cubrir dos necesidades dentro del mismo producto:
 
-- red social visual y geolocalizada
-- descubrimiento de ocio y eventos
-- chats privados, grupos y comunidad
-- mapa social con amigos y locales activos
-- venta y validación de entradas con QR
-- herramientas profesionales para locales
-- panel de administración, moderación y auditoría
+- una capa social para usuarios: perfiles, publicaciones, historias, amigos, grupos, chats y mapa
+- una capa operativa para negocio: eventos, tickets, QR, staff de puerta, métricas, payouts y administración
 
-La app está pensada principalmente para móvil, aunque mantiene experiencia completa en escritorio.
+La aplicación está construida con una arquitectura de servidor real, reglas de acceso por rol, validación en backend y un set de utilidades de seguridad preparado para producción.
+
+## Qué hace el proyecto
+
+Eventro permite:
+
+- descubrir eventos y locales desde un mapa interactivo
+- seguir a otros usuarios, compartir contenido y participar en historias
+- chatear en privado, en grupos y en chats temporales por evento
+- comprar entradas y almacenarlas en cartera con QR único
+- validar accesos en puerta con personal autorizado
+- operar un panel profesional para locales con métricas y gestión
+- moderar la plataforma desde un panel administrativo con auditoría
 
 ## Funcionalidades principales
 
-### Red social
+### Social
 
 - perfiles públicos y privados
-- `username` único como identidad pública
-- foto de perfil, bio, ciudad y ubicación opcional
-- feed `Descubre`
-- feed `Amigos` para relaciones mutuas
-- publicaciones con imagen
-- historias con duración configurable
-- posibilidad de mostrar o no un post en el perfil
-- seguidores, seguidos y lista real de amigos
-- comentarios y likes
-- likes en comentarios
-- búsqueda de usuarios
-- notificaciones
-
-### Comunidad y mensajería
-
-- mensajes privados 1 a 1
-- estados de leído
-- indicador de escribiendo
-- grupos públicos y privados
-- invitaciones y solicitudes de acceso a grupos privados
-- chat dentro de grupos
-- chat temporal por evento para usuarios con entrada
-- actualización en tiempo real para mensajes y notificaciones
+- publicaciones con imagen y visibilidad en perfil
+- historias activas y destacadas
+- comentarios, likes y reacciones
+- seguidores, siguiendo y relaciones mutuas
+- mensajería directa y grupos
+- notificaciones en tiempo real
 
 ### Eventos
 
-- publicación de eventos por locales verificados
-- detalle completo del evento
-- enlaces limpios mediante `slug`
-- ubicación precisa
-- subida de imagen por archivo
-- tipos de entrada por evento
-- control de precio, cupo y visibilidad
-- enlace para compartir el evento
+- creación y edición de eventos por locales verificados
+- tipos de entrada, cupos, visibilidad y horarios
+- página de detalle de evento
+- chat temporal para asistentes autorizados
+- mapa con presencia de locales y actividad
 
-### Entradas y acceso
+### Tickets y acceso
 
 - compra de entradas
-- QR único por entrada
-- cartera de entradas del usuario
-- vista individual de cada entrada
-- descarga de entrada
-- política de no devolución reflejada en producto
+- cartera personal
+- QR único por ticket
 - validación en puerta
-- personal autorizado por local
-- control de acceso ligado al local correcto
-- una entrada solo puede validarse una vez
+- control de consumiciones
+- acceso para admin o staff autorizado
 
-### Locales
+### Locales y administración
 
 - solicitud de alta como local
-- aprobación, rechazo o veto por admin
-- verificación visual pública
-- gestión de eventos
-- asignación de porteros / staff de puerta
-- panel avanzado con métricas
-- ingresos brutos y netos estimados
-- comisión de plataforma
-- compradores, visitas, conversión y rankings
-- exportación CSV
-- payouts y liquidaciones preparados para Stripe Connect
+- aprobación, rechazo o veto por administración
+- dashboard con métricas y exportación CSV
+- asignación de porteros por local o evento
+- panel admin con moderación, reportes y auditoría
+- eventos de seguridad y alertas
 
-### Mapa social
-
-- mapa real con Leaflet y OpenStreetMap
-- amigos cercanos con privacidad configurable
-- locales con actividad por rango temporal
-- clustering de marcadores
-- recentrado en tu posición
-- modo fantasma, ubicación aproximada o exacta
-- ficha del local en mapa
-- acceso a rutas externas para llegar
-
-### Moderación y administración
-
-- panel admin
-- revisión de locales
-- reportes de usuarios y contenido
-- bloqueo de usuarios
-- suspensión de cuentas
-- ocultación automática por umbral de reportes
-- auditoría de acciones administrativas
-- alertas por Telegram
-
-### Seguridad de cuenta
-
-- cierre de sesión seguro
-- cambio de contraseña por correo
-- tokens temporales para reseteo
-- invalidación de sesiones al cambiar contraseña
-
-## Seguridad implementada
-
-- sesiones con cookie `httpOnly`
-- validación en servidor de acciones sensibles
-- comprobación estricta de roles y ownership
-- rate limiting en login, registro y acciones críticas
-- rate limiting persistente para escenarios de abuso
-- validación de origen en APIs sensibles
-- cabeceras de seguridad
-- protección básica anti-spam
-- validación de uploads por tipo, tamaño y firma real
-- auditoría de acciones administrativas
-- eventos de seguridad listos para alertas
-
-## Pagos
-
-La base de pagos está preparada para Stripe y Stripe Connect:
-
-- checkout persistido
-- estados de pago
-- webhooks
-- liquidaciones
-- desglose entre:
-  - precio base
-  - comisión de plataforma
-  - gastos de gestión
-
-Actualmente el sistema está listo para conectarse a cuentas reales de Stripe cuando se configuren las claves necesarias.
-
-## Stack técnico
+## Stack tecnológico
 
 - Next.js App Router
 - React 19
@@ -151,163 +69,154 @@ Actualmente el sistema está listo para conectarse a cuentas reales de Stripe cu
 - Tailwind CSS
 - Prisma
 - PostgreSQL
+- Zod
 - WebSocket (`ws`)
 - Leaflet / React Leaflet
 - Stripe
-- Zod
 
-## Estructura del proyecto
+## Estructura básica del proyecto
 
-- `src/app`
-  Rutas y páginas de la aplicación
-- `src/app/actions`
-  Server Actions
-- `src/components`
-  Componentes reutilizables y formularios
-- `src/features`
-  Lógica de dominio
-- `src/lib`
-  Utilidades, seguridad, analytics, realtime, pagos, mapa y helpers
-- `prisma`
-  Esquema, cliente y seed
-- `scripts`
-  Scripts auxiliares
+```text
+eventro/
+├─ prisma/                 # esquema, migraciones y seed
+├─ scripts/                # utilidades auxiliares
+├─ src/
+│  ├─ app/                 # rutas, páginas, APIs y server actions
+│  ├─ components/          # componentes y formularios
+│  ├─ features/            # lógica de dominio por módulo
+│  └─ lib/                 # utilidades transversales, seguridad, pagos, navegación, realtime
+├─ server.ts               # servidor custom con soporte WebSocket
+└─ README.md
+```
 
-## Requisitos
+## Instalación paso a paso
 
-- Node.js 20+
-- PostgreSQL
-- npm
-
-## Puesta en marcha
-
-1. Instala dependencias
+1. Instala las dependencias:
 
 ```bash
 npm install
 ```
 
-2. Crea el archivo de entorno
+2. Crea el archivo de entorno:
 
 ```bash
 copy .env.example .env
 ```
 
-3. Configura la base de datos y genera Prisma
+3. Configura la base de datos y sincroniza Prisma:
 
 ```bash
 node_modules\.bin\prisma.cmd db push
 node_modules\.bin\prisma.cmd generate
 ```
 
-4. Arranca en desarrollo
+4. Arranca el proyecto en local:
 
 ```bash
 npm run dev
 ```
 
-La app quedará disponible, por defecto, en:
+La aplicación queda disponible por defecto en `http://localhost:3000`.
 
-```text
-http://localhost:3000
-```
+## Variables de entorno necesarias
 
-## Scripts útiles
-
-```bash
-npm run dev
-npm run build
-npm run start
-npm run lint
-npm run prisma:generate
-npm run prisma:migrate
-npm run prisma:seed
-```
-
-## Variables de entorno importantes
-
-### Base
+### Base de aplicación
 
 - `DATABASE_URL`
 - `DIRECT_URL`
 - `JWT_SECRET`
 - `APP_URL`
-- `NEXT_PUBLIC_APP_URL`
-
-### Telegram
-
-- `TELEGRAM_BOT_TOKEN`
-- `TELEGRAM_CHAT_ID`
+- `NODE_ENV`
 
 ### Email
 
 - `RESEND_API_KEY`
 - `EMAIL_FROM`
 
+### Push
+
+- `NEXT_PUBLIC_VAPID_PUBLIC_KEY`
+- `VAPID_PRIVATE_KEY`
+- `VAPID_SUBJECT`
+
 ### Stripe
 
 - `STRIPE_SECRET_KEY`
 - `STRIPE_WEBHOOK_SECRET`
 
-## Despliegue
+### Rate limiting y alertas
 
-El proyecto está preparado para desplegarse en plataformas Node con soporte para:
+- `UPSTASH_REDIS_REST_URL`
+- `UPSTASH_REDIS_REST_TOKEN`
+- `TELEGRAM_BOT_TOKEN`
+- `TELEGRAM_CHAT_ID`
+- `TELEGRAM_SECURITY_MIN_LEVEL`
 
-- Next.js
-- WebSocket
-- PostgreSQL
-- procesos persistentes
-
-### Railway
-
-La opción recomendada para este proyecto es **Railway**, porque la app usa:
-
-- servidor custom en `server.ts`
-- WebSocket con `ws`
-- base de datos externa
-
-Pasos recomendados en Railway:
-
-1. Crea un proyecto nuevo en Railway
-2. Conecta este repositorio o súbelo desde GitHub
-3. Añade las variables de entorno del archivo `.env`
-4. Configura una base de datos PostgreSQL
-5. Asegúrate de poner:
-   - `DATABASE_URL`
-   - `DIRECT_URL`
-   - `JWT_SECRET`
-   - `APP_URL`
-   - `NEXT_PUBLIC_APP_URL`
-6. Despliega
-
-Una vez desplegado, la app arrancará con:
+## Cómo ejecutar en local
 
 ```bash
-npm run start
+npm run dev
 ```
 
-que internamente usa el servidor custom con WebSocket.
+Scripts principales:
 
-## Estado del proyecto
+```bash
+npm run dev
+npm run build
+npm run start
+npm run lint
+npm run test
+npm run prisma:generate
+npm run prisma:migrate
+npm run prisma:seed
+```
 
-Eventro está en una fase avanzada de producto, con la mayor parte de la funcionalidad principal ya integrada:
+## Cómo desplegar
+
+El proyecto está pensado para entornos Node con:
+
+- servidor custom
+- WebSocket persistente
+- PostgreSQL externo
+- variables de entorno seguras
+
+### Flujo recomendado
+
+1. Provisiona la base de datos PostgreSQL.
+2. Configura las variables de entorno.
+3. Ejecuta `prisma generate`.
+4. Ejecuta `npm run build`.
+5. Arranca con `npm run start`.
+
+### Nota de despliegue
+
+Railway encaja bien con la arquitectura actual porque el proyecto usa `server.ts` y `ws`. Si se despliega en otra plataforma, hay que garantizar soporte para procesos persistentes y WebSocket.
+
+## Buenas prácticas y notas importantes
+
+- `APP_URL` es obligatoria en producción y debe usar `https`.
+- La autorización se aplica en backend; ocultar botones en frontend no sustituye validaciones servidor-side.
+- El proyecto incluye hardening con CSP, HSTS, validación de origen, rate limiting y eventos de seguridad.
+- La suite `npm run test` cubre regresiones ligeras sobre utilidades críticas de seguridad y acceso.
+- Antes de producción conviene revisar dependencias y rotar secretos si se han usado en entornos inseguros.
+
+## Estado actual del proyecto
+
+El producto está en una fase avanzada de implementación. La base funcional principal ya está integrada:
 
 - red social
 - eventos
+- tickets y QR
 - mapa
 - locales
-- admin
-- tickets
-- QR
-- pagos preparados
+- administración
+- hardening defensivo
 
-Los siguientes pasos naturales de cierre suelen ser:
+Además, el repositorio ya dispone de una primera capa de tests para seguridad, sanitización y control de acceso.
 
-- conexión real de Stripe
-- QA completo por roles
-- pulido final de responsive
-- endurecimiento final de seguridad e infraestructura
+## Próximos pasos
 
-## Créditos
-
-Desarrollado por **GalekNetwork & OpenAI**.
+- ampliar cobertura automatizada de flujos completos por rol
+- conectar Stripe Connect en entorno real
+- reforzar observabilidad operativa
+- seguir simplificando archivos grandes de UI y server actions donde aporte claridad real

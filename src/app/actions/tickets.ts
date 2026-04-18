@@ -20,10 +20,7 @@ import { getEventPath } from "@/lib/event-path";
 import { DEFAULT_PAYMENT_CURRENCY, getAppBaseUrl, getStripeClient, isStripePaymentsEnabled } from "@/lib/payments";
 import { requireAuth } from "@/lib/permissions";
 import { assertRateLimit } from "@/lib/rate-limit";
-
-function normalize(value: FormDataEntryValue | null) {
-  return String(value ?? "").trim();
-}
+import { readFormValue } from "@/lib/form-data";
 
 function getTicketScanCode(message: string) {
   if (message.includes("ya fue validada")) return "ALREADY_USED";
@@ -31,6 +28,19 @@ function getTicketScanCode(message: string) {
   if (message.includes("cancelada")) return "CANCELLED";
   if (message.includes("autorizados")) return "FORBIDDEN";
   return "ERROR";
+}
+
+function revalidatePurchaseViews(eventId: string, eventPath: string) {
+  revalidatePath(eventPath);
+  revalidatePath("/tickets");
+  revalidatePath(`/local/events/${eventId}/tickets`);
+}
+
+function revalidateScannerViews(eventId: string) {
+  revalidatePath("/tickets");
+  revalidatePath("/scanner");
+  revalidatePath(`/local/events/${eventId}/tickets`);
+  revalidatePath(`/scanner/${eventId}`);
 }
 
 export async function purchaseEventTicketsAction(
@@ -47,9 +57,9 @@ export async function purchaseEventTicketsAction(
       userId: user.id,
     });
 
-    const eventId = normalize(formData.get("eventId"));
-    const ticketTypeId = normalize(formData.get("ticketTypeId"));
-    const quantity = Number(normalize(formData.get("quantity")) || "1");
+    const eventId = readFormValue(formData.get("eventId"));
+    const ticketTypeId = readFormValue(formData.get("ticketTypeId"));
+    const quantity = Number(readFormValue(formData.get("quantity")) || "1");
 
     if (!eventId || !ticketTypeId || !Number.isInteger(quantity) || quantity < 1 || quantity > 10) {
       return { error: "Selecciona una entrada y una cantidad valida." };
@@ -71,9 +81,7 @@ export async function purchaseEventTicketsAction(
         allowOwnerComplimentary: true,
       });
 
-      revalidatePath(getEventPath(checkout.event));
-      revalidatePath("/tickets");
-      revalidatePath(`/local/events/${eventId}/tickets`);
+      revalidatePurchaseViews(eventId, getEventPath(checkout.event));
 
       return {
         success: "Entradas reservadas gratis para tu local. Ya las tienes en tu cartera.",
@@ -118,7 +126,7 @@ export async function purchaseEventTicketsAction(
             currency: DEFAULT_PAYMENT_CURRENCY,
             unit_amount: checkout.managementFeeAmount,
             product_data: {
-      name: "Gastos de gestión",
+              name: "Gastos de gestión",
               description: "Comisión de plataforma añadida al checkout.",
             },
           },
@@ -195,9 +203,7 @@ export async function purchaseEventTicketsAction(
       })
       .catch(() => null);
 
-    revalidatePath(getEventPath(checkout.event));
-    revalidatePath("/tickets");
-    revalidatePath(`/local/events/${eventId}/tickets`);
+    revalidatePurchaseViews(eventId, getEventPath(checkout.event));
 
     return {
       success:
@@ -220,8 +226,8 @@ export async function validateTicketAction(
   _prevState: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  const eventId = normalize(formData.get("eventId"));
-  const code = normalize(formData.get("code")).toUpperCase();
+  const eventId = readFormValue(formData.get("eventId"));
+  const code = readFormValue(formData.get("code")).toUpperCase();
   let scannerId = "";
 
   try {
@@ -252,10 +258,7 @@ export async function validateTicketAction(
       details: `${ticket.event.title} · ${ticket.ticketType.name}`,
     }).catch(() => null);
 
-    revalidatePath(`/local/events/${eventId}/tickets`);
-    revalidatePath("/tickets");
-    revalidatePath("/scanner");
-    revalidatePath(`/scanner/${eventId}`);
+    revalidateScannerViews(eventId);
 
     return {
       success: `Entrada validada para ${ticket.buyer.username ?? ticket.buyer.name ?? "usuario"} · ${ticket.ticketType.name}`,
@@ -320,8 +323,8 @@ export async function redeemTicketDrinkAction(
       userId: scanner.id,
     });
 
-    const eventId = normalize(formData.get("eventId"));
-    const ticketId = normalize(formData.get("ticketId"));
+    const eventId = readFormValue(formData.get("eventId"));
+    const ticketId = readFormValue(formData.get("ticketId"));
 
     if (!eventId || !ticketId) {
       return { code: "INVALID", error: "Falta informacion de la entrada." };
@@ -340,10 +343,7 @@ export async function redeemTicketDrinkAction(
       details: `${ticket.event.title} · ${ticket.ticketType.name}`,
     }).catch(() => null);
 
-    revalidatePath(`/local/events/${eventId}/tickets`);
-    revalidatePath("/tickets");
-    revalidatePath("/scanner");
-    revalidatePath(`/scanner/${eventId}`);
+    revalidateScannerViews(eventId);
 
     return {
       success: `Consumición registrada para ${ticket.buyer.username ?? ticket.buyer.name ?? "usuario"}.`,

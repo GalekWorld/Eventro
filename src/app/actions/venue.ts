@@ -10,10 +10,7 @@ import type { ActionState } from "@/lib/http";
 import { parseCoordinate } from "@/lib/geo";
 import { sendTelegramAlert } from "@/lib/telegram";
 import { createAdminAuditLog } from "@/lib/admin-audit";
-
-function normalize(value: FormDataEntryValue | null) {
-  return String(value ?? "").trim();
-}
+import { readFormValue } from "@/lib/form-data";
 
 export async function submitVenueRequestAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
   try {
@@ -23,16 +20,16 @@ export async function submitVenueRequestAction(_prevState: ActionState, formData
       return { error: "Tu cuenta ya puede públicar eventos." };
     }
 
-    const businessName = normalize(formData.get("businessName"));
-    const city = normalize(formData.get("city"));
+    const businessName = readFormValue(formData.get("businessName"));
+    const city = readFormValue(formData.get("city"));
     const latitude = parseCoordinate(formData.get("latitude"), "lat");
     const longitude = parseCoordinate(formData.get("longitude"), "lng");
-    const address = normalize(formData.get("address"));
-    const category = normalize(formData.get("category"));
-    const description = normalize(formData.get("description"));
-    const phone = normalize(formData.get("phone"));
-    const website = normalize(formData.get("website"));
-    const instagram = normalize(formData.get("instagram"));
+    const address = readFormValue(formData.get("address"));
+    const category = readFormValue(formData.get("category"));
+    const description = readFormValue(formData.get("description"));
+    const phone = readFormValue(formData.get("phone"));
+    const website = readFormValue(formData.get("website"));
+    const instagram = readFormValue(formData.get("instagram"));
 
     if (businessName.length < 2 || city.length < 2) {
       return { error: "El nombre del negocio y la ciudad son obligatorios." };
@@ -102,9 +99,9 @@ export async function submitVenueRequestAction(_prevState: ActionState, formData
 
 export async function reviewVenueRequestAction(formData: FormData) {
   const admin = await requireRole(["ADMIN"]);
-  const requestId = normalize(formData.get("requestId"));
-  const decision = normalize(formData.get("decision"));
-  const rejectionReason = normalize(formData.get("rejectionReason"));
+  const requestId = readFormValue(formData.get("requestId"));
+  const decision = readFormValue(formData.get("decision"));
+  const rejectionReason = readFormValue(formData.get("rejectionReason"));
 
   if (!requestId || !["approve", "reject", "ban"].includes(decision)) {
     throw new Error("Solicitud invalida.");

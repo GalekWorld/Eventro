@@ -114,8 +114,15 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
       <section className="app-card p-5 sm:p-7">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
           <div className="mx-auto sm:mx-0">
-            <div className="app-story-ring rounded-full p-[3px]">
-              <UserAvatar user={profile} className="h-24 w-24 sm:h-36 sm:w-36" textClassName="text-3xl" />
+            <div className="relative">
+              <div className="app-story-ring rounded-full p-[3px]">
+                <UserAvatar user={profile} className="h-24 w-24 sm:h-36 sm:w-36" textClassName="text-3xl" />
+              </div>
+              {isOwnProfile ? (
+                <Link href="/profile/private#story-uploader" aria-label="Subir historia" className="absolute inset-0 rounded-full">
+                  <span className="sr-only">Subir historia</span>
+                </Link>
+              ) : null}
             </div>
           </div>
 

@@ -28,14 +28,7 @@ import { listHighlightedStoryIdsForUser } from "@/lib/story-metadata";
 import { parseVenueHoursFromFormData, saveVenueHours } from "@/lib/venue-hours";
 import { toggleStoryReactionForUser } from "@/lib/story-reactions";
 import { canUserAccessEventChat } from "@/features/events/event.service";
-
-function normalize(value: FormDataEntryValue | null) {
-  return String(value ?? "").trim();
-}
-
-function clampText(value: FormDataEntryValue | null, maxLength: number) {
-  return normalize(value).slice(0, maxLength);
-}
+import { clampFormValue, readFormValue } from "@/lib/form-data";
 
 function getConversationPair(userIdA: string, userIdB: string) {
   return [userIdA, userIdB].sort();
@@ -146,8 +139,8 @@ async function autoHideReportedContent(payload: {
 
 export async function followUserAction(formData: FormData) {
   const currentUser = await requireAuth();
-  const targetUserId = normalize(formData.get("targetUserId"));
-  const redirectPath = toSafeInternalPath(normalize(formData.get("redirectPath")), "/search");
+  const targetUserId = readFormValue(formData.get("targetUserId"));
+  const redirectPath = toSafeInternalPath(readFormValue(formData.get("redirectPath")), "/search");
 
   if (!targetUserId || targetUserId === currentUser.id) {
     return;
@@ -216,8 +209,8 @@ export async function followUserAction(formData: FormData) {
 
 export async function blockUserAction(formData: FormData) {
   const currentUser = await requireAuth();
-  const targetUserId = normalize(formData.get("targetUserId"));
-  const redirectPath = toSafeInternalPath(normalize(formData.get("redirectPath")), "/search");
+  const targetUserId = readFormValue(formData.get("targetUserId"));
+  const redirectPath = toSafeInternalPath(readFormValue(formData.get("redirectPath")), "/search");
 
   if (!targetUserId || targetUserId === currentUser.id) {
     return;
@@ -260,8 +253,8 @@ export async function blockUserAction(formData: FormData) {
 export async function reportUserAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
   try {
     const currentUser = await requireAuth();
-    const reportedUserId = normalize(formData.get("reportedUserId"));
-    const reason = clampText(formData.get("reason"), 240);
+    const reportedUserId = readFormValue(formData.get("reportedUserId"));
+    const reason = clampFormValue(formData.get("reason"), 240);
 
     if (!reportedUserId || !reason) {
       return { error: "Indica a quién reportas y el motivo." };
@@ -322,10 +315,10 @@ export async function createPostAction(_prevState: ActionState, formData: FormDa
       userId: currentUser.id,
     });
 
-    const content = clampText(formData.get("content"), 2_000);
-    const location = clampText(formData.get("location"), 120);
+    const content = clampFormValue(formData.get("content"), 2_000);
+    const location = clampFormValue(formData.get("location"), 120);
     const file = formData.get("image");
-    const showOnProfile = normalize(formData.get("showOnProfile")) === "on";
+    const showOnProfile = readFormValue(formData.get("showOnProfile")) === "on";
     let imageUrl: string | null = null;
 
     if (content.length < 2) {
@@ -362,9 +355,9 @@ export async function createPostAction(_prevState: ActionState, formData: FormDa
 export async function updatePostAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
   try {
     const currentUser = await requireAuth();
-    const postId = normalize(formData.get("postId"));
-    const content = clampText(formData.get("content"), 2_000);
-    const redirectPath = toSafeInternalPath(normalize(formData.get("redirectPath")), "/dashboard");
+    const postId = readFormValue(formData.get("postId"));
+    const content = clampFormValue(formData.get("content"), 2_000);
+    const redirectPath = toSafeInternalPath(readFormValue(formData.get("redirectPath")), "/dashboard");
 
     const post = await db.post.findUnique({
       where: { id: postId },
@@ -394,8 +387,8 @@ export async function updatePostAction(_prevState: ActionState, formData: FormDa
 
 export async function deletePostAction(formData: FormData) {
   const currentUser = await requireAuth();
-  const postId = normalize(formData.get("postId"));
-  const redirectPath = toSafeInternalPath(normalize(formData.get("redirectPath")), "/dashboard");
+  const postId = readFormValue(formData.get("postId"));
+  const redirectPath = toSafeInternalPath(readFormValue(formData.get("redirectPath")), "/dashboard");
 
   const post = await db.post.findUnique({
     where: { id: postId },
@@ -437,9 +430,9 @@ export async function createStoryAction(_prevState: ActionState, formData: FormD
       userId: currentUser.id,
     });
 
-    const caption = clampText(formData.get("caption"), 140);
+    const caption = clampFormValue(formData.get("caption"), 140);
     const file = formData.get("image");
-    const durationValue = Number(normalize(formData.get("durationSec")) || "10");
+    const durationValue = Number(readFormValue(formData.get("durationSec")) || "10");
     const durationSec = Number.isFinite(durationValue) ? Math.min(Math.max(Math.round(durationValue), 5), 15) : 10;
 
     if (!(file instanceof File) || file.size === 0) {
@@ -489,7 +482,7 @@ export async function createStoryAction(_prevState: ActionState, formData: FormD
 
 export async function deleteStoryAction(formData: FormData) {
   const currentUser = await requireAuth();
-  const storyId = normalize(formData.get("storyId"));
+  const storyId = readFormValue(formData.get("storyId"));
 
   if (!storyId) return;
 
@@ -522,7 +515,7 @@ export async function deleteStoryAction(formData: FormData) {
 
 export async function toggleStoryHighlightAction(formData: FormData) {
   const currentUser = await requireAuth();
-  const storyId = normalize(formData.get("storyId"));
+  const storyId = readFormValue(formData.get("storyId"));
 
   if (!storyId) return;
 
@@ -571,9 +564,9 @@ export async function createGroupAction(_prevState: ActionState, formData: FormD
       userId: currentUser.id,
     });
 
-    const name = normalize(formData.get("name"));
-    const description = normalize(formData.get("description"));
-    const privacy = normalize(formData.get("privacy")) === "PRIVATE" ? GroupPrivacy.PRIVATE : GroupPrivacy.PUBLIC;
+    const name = readFormValue(formData.get("name"));
+    const description = readFormValue(formData.get("description"));
+    const privacy = readFormValue(formData.get("privacy")) === "PRIVATE" ? GroupPrivacy.PRIVATE : GroupPrivacy.PUBLIC;
 
     if (name.length < 3) {
       return { error: "El nombre del grupo es obligatorio." };
@@ -623,14 +616,14 @@ export async function updateProfileAction(_prevState: ActionState, formData: For
       userId: currentUser.id,
     });
 
-    const name = clampText(formData.get("name"), 80);
-    const bio = clampText(formData.get("bio"), 280);
-    const city = clampText(formData.get("city"), 60);
-    const locationAddress = clampText(formData.get("locationAddress"), 180);
+    const name = clampFormValue(formData.get("name"), 80);
+    const bio = clampFormValue(formData.get("bio"), 280);
+    const city = clampFormValue(formData.get("city"), 60);
+    const locationAddress = clampFormValue(formData.get("locationAddress"), 180);
     const latitude = parseCoordinate(formData.get("latitude"), "lat");
     const longitude = parseCoordinate(formData.get("longitude"), "lng");
-    const requestedLocationMode = normalize(formData.get("locationSharingMode"));
-    const desiredUsername = normalizeUsername(normalize(formData.get("username")));
+    const requestedLocationMode = readFormValue(formData.get("locationSharingMode"));
+    const desiredUsername = normalizeUsername(readFormValue(formData.get("username")));
     const avatar = formData.get("avatar");
     const isVenueProfile = currentUser.role === "VENUE" || currentUser.role === "VENUE_PENDING";
     const venueHours = isVenueProfile ? parseVenueHoursFromFormData(formData) : [];
@@ -740,9 +733,9 @@ export async function updateProfileAction(_prevState: ActionState, formData: For
 
 export async function toggleStoryReactionAction(formData: FormData) {
   const currentUser = await requireAuth();
-  const storyId = normalize(formData.get("storyId"));
-  const reaction = normalize(formData.get("reaction"));
-  const redirectPath = toSafeInternalPath(normalize(formData.get("redirectPath")), `/stories/${storyId}`);
+  const storyId = readFormValue(formData.get("storyId"));
+  const reaction = readFormValue(formData.get("reaction"));
+  const redirectPath = toSafeInternalPath(readFormValue(formData.get("redirectPath")), `/stories/${storyId}`);
 
   if (!storyId || !reaction) {
     return;
@@ -777,7 +770,7 @@ export async function toggleStoryReactionAction(formData: FormData) {
 
 export async function toggleGroupMembershipAction(formData: FormData) {
   const currentUser = await requireAuth();
-  const groupId = normalize(formData.get("groupId"));
+  const groupId = readFormValue(formData.get("groupId"));
   if (!groupId) return;
 
   const existing = await db.groupMembership.findUnique({
@@ -870,8 +863,8 @@ export async function toggleGroupMembershipAction(formData: FormData) {
 export async function inviteToGroupAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
   try {
     const currentUser = await requireAuth();
-    const groupId = normalize(formData.get("groupId"));
-    const username = normalizeUsername(normalize(formData.get("username")));
+    const groupId = readFormValue(formData.get("groupId"));
+    const username = normalizeUsername(readFormValue(formData.get("username")));
 
     const membership = await ensureGroupOwner(groupId, currentUser.id);
     if (!membership || membership.role !== "OWNER") {
@@ -927,8 +920,8 @@ export async function inviteToGroupAction(_prevState: ActionState, formData: For
 
 export async function reviewGroupJoinRequestAction(formData: FormData) {
   const currentUser = await requireAuth();
-  const requestId = normalize(formData.get("requestId"));
-  const decision = normalize(formData.get("decision"));
+  const requestId = readFormValue(formData.get("requestId"));
+  const decision = readFormValue(formData.get("decision"));
   if (!requestId) return;
 
   const request = await db.groupJoinRequest.findUnique({
@@ -982,8 +975,8 @@ export async function reviewGroupJoinRequestAction(formData: FormData) {
 
 export async function respondGroupInviteAction(formData: FormData) {
   const currentUser = await requireAuth();
-  const inviteId = normalize(formData.get("inviteId"));
-  const decision = normalize(formData.get("decision"));
+  const inviteId = readFormValue(formData.get("inviteId"));
+  const decision = readFormValue(formData.get("decision"));
   if (!inviteId) return;
 
   const invite = await db.groupInvite.findUnique({
@@ -1036,8 +1029,8 @@ export async function sendGroupMessageAction(_prevState: ActionState, formData: 
       windowMs: 5 * 60 * 1000,
       message: "Estás enviando mensajes demasiado rápido.",
     });
-    const groupId = normalize(formData.get("groupId"));
-    const body = clampText(formData.get("body"), 2_000);
+    const groupId = readFormValue(formData.get("groupId"));
+    const body = clampFormValue(formData.get("body"), 2_000);
 
     if (!groupId || body.length < 1) {
       return { error: "Escribe un mensaje válido." };
@@ -1101,7 +1094,7 @@ export async function sendGroupMessageAction(_prevState: ActionState, formData: 
 
 export async function deleteGroupMessageAction(formData: FormData) {
   const currentUser = await requireAuth();
-  const messageId = normalize(formData.get("messageId"));
+  const messageId = readFormValue(formData.get("messageId"));
 
   const message = await db.groupMessage.findUnique({
     where: { id: messageId },
@@ -1154,8 +1147,8 @@ export async function markGroupReadAction(groupId: string) {
 
 export async function togglePostLikeAction(formData: FormData) {
   const currentUser = await requireAuth();
-  const postId = normalize(formData.get("postId"));
-  const redirectPath = toSafeInternalPath(normalize(formData.get("redirectPath")), "/dashboard");
+  const postId = readFormValue(formData.get("postId"));
+  const redirectPath = toSafeInternalPath(readFormValue(formData.get("redirectPath")), "/dashboard");
   if (!postId) return;
 
   const post = await db.post.findUnique({
@@ -1219,9 +1212,9 @@ export async function createPostCommentAction(_prevState: ActionState, formData:
       windowMs: 10 * 60 * 1000,
       message: "Estás comentando demasiado rápido.",
     });
-    const postId = normalize(formData.get("postId"));
-    const redirectPath = toSafeInternalPath(normalize(formData.get("redirectPath")), "/dashboard");
-    const body = clampText(formData.get("body"), 500);
+    const postId = readFormValue(formData.get("postId"));
+    const redirectPath = toSafeInternalPath(readFormValue(formData.get("redirectPath")), "/dashboard");
+    const body = clampFormValue(formData.get("body"), 500);
 
     if (!postId || body.length < 1) {
       return { error: "Escribe un comentario válido." };
@@ -1275,9 +1268,9 @@ export async function createPostCommentAction(_prevState: ActionState, formData:
 export async function updatePostCommentAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
   try {
     const currentUser = await requireAuth();
-    const commentId = normalize(formData.get("commentId"));
-    const body = clampText(formData.get("body"), 500);
-    const redirectPath = toSafeInternalPath(normalize(formData.get("redirectPath")), "/dashboard");
+    const commentId = readFormValue(formData.get("commentId"));
+    const body = clampFormValue(formData.get("body"), 500);
+    const redirectPath = toSafeInternalPath(readFormValue(formData.get("redirectPath")), "/dashboard");
 
     const comment = await db.postComment.findUnique({
       where: { id: commentId },
@@ -1303,8 +1296,8 @@ export async function updatePostCommentAction(_prevState: ActionState, formData:
 
 export async function deletePostCommentAction(formData: FormData) {
   const currentUser = await requireAuth();
-  const commentId = normalize(formData.get("commentId"));
-  const redirectPath = toSafeInternalPath(normalize(formData.get("redirectPath")), "/dashboard");
+  const commentId = readFormValue(formData.get("commentId"));
+  const redirectPath = toSafeInternalPath(readFormValue(formData.get("redirectPath")), "/dashboard");
 
   const comment = await db.postComment.findUnique({
     where: { id: commentId },
@@ -1339,8 +1332,8 @@ export async function deletePostCommentAction(formData: FormData) {
 
 export async function toggleCommentLikeAction(formData: FormData) {
   const currentUser = await requireAuth();
-  const commentId = normalize(formData.get("commentId"));
-  const redirectPath = toSafeInternalPath(normalize(formData.get("redirectPath")), "/dashboard");
+  const commentId = readFormValue(formData.get("commentId"));
+  const redirectPath = toSafeInternalPath(readFormValue(formData.get("redirectPath")), "/dashboard");
   if (!commentId) return;
 
   const comment = await db.postComment.findUnique({
@@ -1398,16 +1391,16 @@ export async function toggleCommentLikeAction(formData: FormData) {
 export async function reportContentAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
   try {
     const currentUser = await requireAuth();
-    const reason = clampText(formData.get("reason"), 240);
+    const reason = clampFormValue(formData.get("reason"), 240);
     const payload = {
       reporterId: currentUser.id,
       reason,
-      postId: normalize(formData.get("postId")) || undefined,
-      postCommentId: normalize(formData.get("postCommentId")) || undefined,
-      groupMessageId: normalize(formData.get("groupMessageId")) || undefined,
-      eventChatMessageId: normalize(formData.get("eventChatMessageId")) || undefined,
-      directMessageId: normalize(formData.get("directMessageId")) || undefined,
-      reportedUserId: normalize(formData.get("reportedUserId")) || undefined,
+      postId: readFormValue(formData.get("postId")) || undefined,
+      postCommentId: readFormValue(formData.get("postCommentId")) || undefined,
+      groupMessageId: readFormValue(formData.get("groupMessageId")) || undefined,
+      eventChatMessageId: readFormValue(formData.get("eventChatMessageId")) || undefined,
+      directMessageId: readFormValue(formData.get("directMessageId")) || undefined,
+      reportedUserId: readFormValue(formData.get("reportedUserId")) || undefined,
     };
 
     if (!reason) {
@@ -1465,7 +1458,7 @@ export async function reportContentAction(_prevState: ActionState, formData: For
 
 export async function openDirectConversationAction(formData: FormData) {
   const currentUser = await requireAuth();
-  const targetUserId = normalize(formData.get("targetUserId"));
+  const targetUserId = readFormValue(formData.get("targetUserId"));
 
   if (!targetUserId || targetUserId === currentUser.id) {
     redirect("/messages");
@@ -1511,8 +1504,8 @@ export async function sendDirectMessageAction(_prevState: ActionState, formData:
       windowMs: 5 * 60 * 1000,
       message: "Estás enviando mensajes demasiado rápido.",
     });
-    const conversationId = normalize(formData.get("conversationId"));
-    const body = clampText(formData.get("body"), 2_000);
+    const conversationId = readFormValue(formData.get("conversationId"));
+    const body = clampFormValue(formData.get("body"), 2_000);
 
     if (!conversationId || body.length < 1) {
       return { error: "Escribe un mensaje válido." };
@@ -1604,7 +1597,7 @@ export async function sendDirectMessageAction(_prevState: ActionState, formData:
 
 export async function deleteDirectMessageAction(formData: FormData) {
   const currentUser = await requireAuth();
-  const messageId = normalize(formData.get("messageId"));
+  const messageId = readFormValue(formData.get("messageId"));
 
   const message = await db.directMessage.findUnique({
     where: { id: messageId },
@@ -1725,8 +1718,8 @@ export async function sendEventChatMessageAction(_prevState: ActionState, formDa
       message: "Estas enviando mensajes demasiado rapido.",
     });
 
-    const eventId = normalize(formData.get("eventId"));
-    const body = clampText(formData.get("body"), 1_500);
+    const eventId = readFormValue(formData.get("eventId"));
+    const body = clampFormValue(formData.get("body"), 1_500);
 
     if (!eventId || body.length < 1) {
       return { error: "Escribe un mensaje valido." };
@@ -1819,7 +1812,7 @@ export async function sendEventChatMessageAction(_prevState: ActionState, formDa
 
 export async function deleteEventChatMessageAction(formData: FormData) {
   const currentUser = await requireAuth();
-  const messageId = normalize(formData.get("messageId"));
+  const messageId = readFormValue(formData.get("messageId"));
 
   const message = await db.eventChatMessage.findUnique({
     where: { id: messageId },
@@ -1879,9 +1872,9 @@ export async function resolveUserReportAction(formData: FormData) {
   const currentUser = await requireAuth();
   if (currentUser.role !== "ADMIN") return;
 
-  const reportId = normalize(formData.get("reportId"));
-  const decision = normalize(formData.get("decision"));
-  const adminNotes = clampText(formData.get("adminNotes"), 240);
+  const reportId = readFormValue(formData.get("reportId"));
+  const decision = readFormValue(formData.get("decision"));
+  const adminNotes = clampFormValue(formData.get("adminNotes"), 240);
 
   const report = await db.userReport.findUnique({
     where: { id: reportId },
@@ -1915,8 +1908,8 @@ export async function suspendUserAction(formData: FormData) {
   const currentUser = await requireAuth();
   if (currentUser.role !== "ADMIN") return;
 
-  const userId = normalize(formData.get("userId"));
-  const reason = clampText(formData.get("reason"), 240);
+  const userId = readFormValue(formData.get("userId"));
+  const reason = clampFormValue(formData.get("reason"), 240);
 
   if (!userId || userId === currentUser.id) return;
 
@@ -1947,7 +1940,7 @@ export async function unsuspendUserAction(formData: FormData) {
   const currentUser = await requireAuth();
   if (currentUser.role !== "ADMIN") return;
 
-  const userId = normalize(formData.get("userId"));
+  const userId = readFormValue(formData.get("userId"));
   if (!userId) return;
 
   await db.user.update({

@@ -13,14 +13,11 @@ import { assertRateLimit } from "@/lib/rate-limit";
 import { sendTelegramAlert } from "@/lib/telegram";
 import { createAdminAuditLog } from "@/lib/admin-audit";
 import { normalizeUsername } from "@/lib/username";
-
-function normalize(value: FormDataEntryValue | null) {
-  return String(value ?? "").trim();
-}
+import { readFormValue } from "@/lib/form-data";
 
 function combineDateAndTime(dateValue: FormDataEntryValue | null, timeValue: FormDataEntryValue | null) {
-  const date = normalize(dateValue);
-  const time = normalize(timeValue);
+  const date = readFormValue(dateValue);
+  const time = readFormValue(timeValue);
 
   if (!date || !time) return undefined;
 
@@ -45,7 +42,7 @@ function parseOptionalDateTime(value: string | undefined) {
 }
 
 function parseTicketTypes(value: FormDataEntryValue | null): TicketTypeInput[] {
-  const raw = normalize(value);
+  const raw = readFormValue(value);
   if (!raw) {
     return [];
   }
@@ -78,6 +75,14 @@ function parseTicketTypes(value: FormDataEntryValue | null): TicketTypeInput[] {
   });
 }
 
+async function getUploadedImageUrl(fileEntry: FormDataEntryValue | null) {
+  if (!(fileEntry instanceof File) || fileEntry.size <= 0) {
+    return "";
+  }
+
+  return savePublicImage(fileEntry, "events");
+}
+
 export async function createEventAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
   try {
     const user = await requireRole(["VENUE"]);
@@ -89,18 +94,13 @@ export async function createEventAction(_prevState: ActionState, formData: FormD
       userId: user.id,
     });
 
-    const imageFile = formData.get("image");
-    let imageUrl = "";
-
-    if (imageFile instanceof File && imageFile.size > 0) {
-      imageUrl = await savePublicImage(imageFile, "events");
-    }
+    const imageUrl = await getUploadedImageUrl(formData.get("image"));
 
     const input = createEventSchema.parse({
       title: formData.get("title"),
       description: formData.get("description"),
       hasReservations: formData.get("hasReservations") === "true",
-      reservationInfo: normalize(formData.get("reservationInfo")) || undefined,
+      reservationInfo: readFormValue(formData.get("reservationInfo")) || undefined,
       location: formData.get("location"),
       city: formData.get("city"),
       latitude: parseCoordinate(formData.get("latitude"), "lat"),
@@ -134,23 +134,18 @@ export async function createEventAction(_prevState: ActionState, formData: FormD
 export async function updateEventBasicsAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
   try {
     const user = await requireRole(["VENUE"]);
-    const eventId = normalize(formData.get("eventId"));
+    const eventId = readFormValue(formData.get("eventId"));
     if (!eventId) {
       return { error: "No se ha encontrado el evento." };
     }
 
-    const imageFile = formData.get("image");
-    let imageUrl = "";
-
-    if (imageFile instanceof File && imageFile.size > 0) {
-      imageUrl = await savePublicImage(imageFile, "events");
-    }
+    const imageUrl = await getUploadedImageUrl(formData.get("image"));
 
     const input = updateEventBasicsSchema.parse({
       title: formData.get("title"),
       description: formData.get("description"),
       hasReservations: formData.get("hasReservations") === "true",
-      reservationInfo: normalize(formData.get("reservationInfo")) || undefined,
+      reservationInfo: readFormValue(formData.get("reservationInfo")) || undefined,
       location: formData.get("location"),
       city: formData.get("city"),
       latitude: parseCoordinate(formData.get("latitude"), "lat"),
@@ -193,7 +188,7 @@ export async function updateEventBasicsAction(_prevState: ActionState, formData:
 
 export async function deleteEventAction(formData: FormData): Promise<void> {
   const currentUser = await requireRole(["ADMIN", "VENUE"]);
-  const eventId = normalize(formData.get("eventId"));
+  const eventId = readFormValue(formData.get("eventId"));
   if (!eventId) return;
 
   const event = await db.event.findUnique({
@@ -244,8 +239,8 @@ export async function deleteEventAction(formData: FormData): Promise<void> {
 
 export async function featureAdminEventAction(formData: FormData): Promise<void> {
   const admin = await requireRole(["ADMIN"]);
-  const eventId = normalize(formData.get("eventId"));
-  const mode = normalize(formData.get("mode"));
+  const eventId = readFormValue(formData.get("eventId"));
+  const mode = readFormValue(formData.get("mode"));
   if (!eventId) return;
 
   const event = await db.event.findUnique({
@@ -273,8 +268,8 @@ export async function featureAdminEventAction(formData: FormData): Promise<void>
 export async function addDoorStaffAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
   try {
     const venue = await requireRole(["VENUE"]);
-    const username = normalizeUsername(normalize(formData.get("username")));
-    const eventId = normalize(formData.get("eventId")) || null;
+    const username = normalizeUsername(readFormValue(formData.get("username")));
+    const eventId = readFormValue(formData.get("eventId")) || null;
 
     if (username.length < 3) {
       return { error: "Indica un username válido." };
@@ -344,8 +339,8 @@ export async function addDoorStaffAction(_prevState: ActionState, formData: Form
 
 export async function removeDoorStaffAction(formData: FormData): Promise<void> {
   const venue = await requireRole(["VENUE"]);
-  const assignmentId = normalize(formData.get("assignmentId"));
-  const eventId = normalize(formData.get("eventId"));
+  const assignmentId = readFormValue(formData.get("assignmentId"));
+  const eventId = readFormValue(formData.get("eventId"));
   if (!assignmentId) return;
 
   const assignment = await db.venueDoorStaff.findUnique({

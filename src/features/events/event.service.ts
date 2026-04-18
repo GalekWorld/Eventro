@@ -6,6 +6,7 @@ import { DEFAULT_PAYMENT_CURRENCY, calculateCheckoutAmounts } from "@/lib/paymen
 import type { CreateEventInput, EventFilters, UpdateEventBasicsInput } from "@/features/events/event.schemas";
 import { getEventPath } from "@/lib/event-path";
 import { publishRealtimeEvent, userTopic } from "@/lib/realtime";
+import { canAccessEventChatPolicy, canAccessScannerEventPolicy } from "@/lib/access-control";
 
 function getEventSummary(ticketTypes: CreateEventInput["ticketTypes"]) {
   const cheapestPaid = ticketTypes
@@ -143,7 +144,6 @@ export async function canUserAccessEventChat({
   ownerId?: string;
 }) {
   if (role === UserRole.ADMIN) return true;
-
   const effectiveOwnerId =
     ownerId ??
     (
@@ -154,9 +154,13 @@ export async function canUserAccessEventChat({
     )?.ownerId;
 
   if (!effectiveOwnerId) return false;
-  if (effectiveOwnerId === userId) return true;
+  const hasConfirmedEventAccess = await userHasConfirmedEventAccess({ eventId, userId });
 
-  return userHasConfirmedEventAccess({ eventId, userId });
+  return canAccessEventChatPolicy({
+    role,
+    isOwner: effectiveOwnerId === userId,
+    hasConfirmedEventAccess,
+  });
 }
 
 async function generateUniqueEventSlug(title: string) {
@@ -533,7 +537,6 @@ export async function getScannableEventById({
   });
 
   if (!event) return null;
-  if (role === UserRole.ADMIN) return event;
 
   const assignment = await db.venueDoorStaff.findFirst({
     where: {
@@ -544,7 +547,12 @@ export async function getScannableEventById({
     select: { id: true },
   });
 
-  return assignment ? event : null;
+  return canAccessScannerEventPolicy({
+    role,
+    hasAssignment: Boolean(assignment),
+  })
+    ? event
+    : null;
 }
 
 export async function createEventForLocal(ownerId: string, input: CreateEventInput) {
@@ -1136,6 +1144,10 @@ export async function validateVenueTicket({
       throw new Error("No existe ninguna entrada con ese código.");
     }
 
+    if (!canAccessScannerEventPolicy({ role: scanner.role, hasAssignment: true })) {
+      throw new Error("Solo los porteros autorizados o los admins pueden escanear esta entrada.");
+    }
+
     if (scanner.role !== UserRole.ADMIN) {
       const assignment = await tx.venueDoorStaff.findFirst({
         where: {
@@ -1146,7 +1158,7 @@ export async function validateVenueTicket({
         select: { id: true },
       });
 
-      if (!assignment) {
+      if (!canAccessScannerEventPolicy({ role: scanner.role, hasAssignment: Boolean(assignment) })) {
         throw new Error("Solo los porteros autorizados o los admins pueden escanear esta entrada.");
       }
     }
@@ -1254,6 +1266,10 @@ export async function inspectVenueTicketByCode({
     throw new Error("No existe ninguna entrada con ese codigo.");
   }
 
+  if (!canAccessScannerEventPolicy({ role: scanner.role, hasAssignment: true })) {
+    throw new Error("Solo los porteros autorizados o los admins pueden ver esta entrada.");
+  }
+
   if (scanner.role !== UserRole.ADMIN) {
     const assignment = await db.venueDoorStaff.findFirst({
       where: {
@@ -1264,7 +1280,7 @@ export async function inspectVenueTicketByCode({
       select: { id: true },
     });
 
-    if (!assignment) {
+    if (!canAccessScannerEventPolicy({ role: scanner.role, hasAssignment: Boolean(assignment) })) {
       throw new Error("Solo los porteros autorizados o los admins pueden ver esta entrada.");
     }
   }
@@ -1326,6 +1342,10 @@ export async function redeemTicketDrink({
       throw new Error("No existe ninguna entrada con ese identificador.");
     }
 
+    if (!canAccessScannerEventPolicy({ role: scanner.role, hasAssignment: true })) {
+      throw new Error("Solo los porteros autorizados o los admins pueden descontar consumiciones.");
+    }
+
     if (scanner.role !== UserRole.ADMIN) {
       const assignment = await tx.venueDoorStaff.findFirst({
         where: {
@@ -1336,7 +1356,7 @@ export async function redeemTicketDrink({
         select: { id: true },
       });
 
-      if (!assignment) {
+      if (!canAccessScannerEventPolicy({ role: scanner.role, hasAssignment: Boolean(assignment) })) {
         throw new Error("Solo los porteros autorizados o los admins pueden descontar consumiciones.");
       }
     }

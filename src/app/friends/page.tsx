@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireAuth } from "@/lib/permissions";
+import { requirePageAuth } from "@/lib/permissions";
 import { db } from "@/lib/db";
 import { UserAvatar } from "@/components/user-avatar";
 import { VerifiedBadge } from "@/components/verified-badge";
@@ -8,7 +8,7 @@ import { getBlockedUserIds } from "@/lib/privacy";
 import { getMutualFriendIds } from "@/lib/social-graph";
 
 export default async function FriendsPage() {
-  const currentUser = await requireAuth();
+  const currentUser = await requirePageAuth();
   const blockedUserIds = await getBlockedUserIds(currentUser.id);
 
   const friendIds = await getMutualFriendIds(currentUser.id);

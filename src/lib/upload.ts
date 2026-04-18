@@ -2,6 +2,7 @@ import { mkdir, unlink, writeFile } from "fs/promises";
 import path from "path";
 import { randomBytes } from "crypto";
 import { recordSecurityEvent } from "@/lib/security-events";
+import { resolvePublicUploadPath } from "@/lib/upload-path";
 
 const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
@@ -264,13 +265,8 @@ export async function savePublicImage(file: File, folder: string) {
 }
 
 export async function deletePublicFile(publicPath: string) {
-  const normalized = String(publicPath ?? "").trim();
-
-  if (!normalized.startsWith("/uploads/")) {
-    return;
-  }
-
-  const absolutePath = path.join(process.cwd(), "public", normalized.replaceAll("/", path.sep));
+  const absolutePath = resolvePublicUploadPath(publicPath);
+  if (!absolutePath) return;
 
   try {
     await unlink(absolutePath);

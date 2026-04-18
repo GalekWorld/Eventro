@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireAuth } from "@/lib/permissions";
+import { requirePageAuth } from "@/lib/permissions";
 import { db } from "@/lib/db";
 import { markNotificationsReadAction } from "@/app/actions/social";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
@@ -18,7 +18,7 @@ function parsePage(value?: string) {
 }
 
 export default async function NotificationsPage({ searchParams }: { searchParams: SearchParams }) {
-  const user = await requireAuth();
+  const user = await requirePageAuth();
   const params = await searchParams;
   const page = parsePage(params.page);
 

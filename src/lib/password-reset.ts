@@ -4,6 +4,7 @@ import { createHash, randomBytes } from "crypto";
 import { db } from "@/lib/db";
 
 const PASSWORD_RESET_TTL_MS = 60 * 60 * 1000;
+const PASSWORD_RESET_TOKEN_PATTERN = /^[a-f0-9]{64}$/i;
 
 function hashToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
@@ -30,7 +31,12 @@ export async function createPasswordResetToken(userId: string) {
 }
 
 export async function getPasswordResetTokenRecord(token: string) {
-  const tokenHash = hashToken(token);
+  const normalizedToken = String(token ?? "").trim();
+  if (!PASSWORD_RESET_TOKEN_PATTERN.test(normalizedToken)) {
+    return null;
+  }
+
+  const tokenHash = hashToken(normalizedToken);
 
   const record = await db.passwordResetToken.findUnique({
     where: { tokenHash },

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { assertRateLimit } from "@/lib/rate-limit";
 import { jsonError, validateJsonApiRequest } from "@/lib/request-security";
 
 const bodySchema = z.object({
@@ -27,6 +28,18 @@ export async function POST(request: Request) {
 
   if (user.locationSharingMode === "GHOST") {
     return jsonError("LOCATION_DISABLED", 403);
+  }
+
+  try {
+    await assertRateLimit({
+      key: `api:location:${user.id}`,
+      limit: 120,
+      windowMs: 10 * 60 * 1000,
+      message: "Demasiadas actualizaciones de ubicacion.",
+      userId: user.id,
+    });
+  } catch {
+    return jsonError("RATE_LIMITED", 429);
   }
 
   const parsed = bodySchema.safeParse(await request.json());

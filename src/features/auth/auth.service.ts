@@ -4,6 +4,7 @@ import type { LoginInput, RegisterInput } from "@/features/auth/auth.schemas";
 import { createSession, setSessionCookie } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { normalizeUsername } from "@/lib/username";
+import { recordSecurityEvent } from "@/lib/security-events";
 
 export async function registerUser(input: RegisterInput) {
   const email = input.email.toLowerCase();
@@ -37,20 +38,41 @@ export async function registerUser(input: RegisterInput) {
 }
 
 export async function loginUser(input: LoginInput) {
+  const normalizedEmail = input.email.toLowerCase();
   const user = await db.user.findUnique({
-    where: { email: input.email.toLowerCase() },
+    where: { email: normalizedEmail },
   });
 
   if (!user) {
+    await recordSecurityEvent({
+      type: "login_failed",
+      level: "WARN",
+      key: normalizedEmail,
+      message: "Intento de acceso con email no registrado.",
+    });
     throw new Error("Credenciales invalidas");
   }
 
   if (user.suspendedAt) {
+    await recordSecurityEvent({
+      type: "login_blocked",
+      level: "WARN",
+      key: user.email,
+      userId: user.id,
+      message: "Intento de acceso a una cuenta suspendida.",
+    });
     throw new Error(user.suspensionReason || "Tu cuenta esta suspendida temporalmente.");
   }
 
   const isValidPassword = await bcrypt.compare(input.password, user.passwordHash);
   if (!isValidPassword) {
+    await recordSecurityEvent({
+      type: "login_failed",
+      level: "WARN",
+      key: user.email,
+      userId: user.id,
+      message: "Contrasena incorrecta en el login.",
+    });
     throw new Error("Credenciales invalidas");
   }
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { assertRateLimit } from "@/lib/rate-limit";
 import { jsonError } from "@/lib/request-security";
 
 export async function GET(request: Request) {
@@ -9,11 +10,27 @@ export async function GET(request: Request) {
     return jsonError("UNAUTHORIZED", 401);
   }
 
+  try {
+    await assertRateLimit({
+      key: `api:push-pending:${user.id}`,
+      limit: 120,
+      windowMs: 10 * 60 * 1000,
+      message: "Demasiadas comprobaciones de notificaciones push.",
+      userId: user.id,
+    });
+  } catch {
+    return jsonError("RATE_LIMITED", 429);
+  }
+
   const { searchParams } = new URL(request.url);
   const endpoint = searchParams.get("endpoint");
 
   if (!endpoint) {
     return jsonError("MISSING_ENDPOINT", 400);
+  }
+
+  if (endpoint.length > 2048) {
+    return jsonError("INVALID_ENDPOINT", 400);
   }
 
   const subscription = await db.pushSubscription.findFirst({
