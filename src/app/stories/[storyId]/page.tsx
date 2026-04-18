@@ -6,6 +6,7 @@ import { purgeExpiredStories } from "@/lib/stories";
 import { StoryDeleteButton } from "@/components/story-delete-button";
 import { StoryViewer } from "@/components/story-viewer";
 import { getStoryViewSummaries, listHighlightedStoryIdsForUser, registerStoryView } from "@/lib/story-metadata";
+import { getStoryReactionSummaries } from "@/lib/story-reactions";
 
 export default async function StoryPage({
   params,
@@ -76,6 +77,7 @@ export default async function StoryPage({
   const highlightedIds = currentUser?.id === story.author.id ? await listHighlightedStoryIdsForUser(currentUser.id) : [];
   const isHighlighted = highlightedIds.includes(story.id);
   const viewSummaries = currentUser?.id === story.author.id ? await getStoryViewSummaries([story.id]) : new Map();
+  const reactionSummaries = await getStoryReactionSummaries(orderedStories.map((item) => item.id), currentUser?.id);
   const currentStoryViews = viewSummaries.get(story.id) ?? { count: 0, viewers: [] };
 
   const closeHref = routeSearchParams.from === "profile-private" ? "/profile/private" : "/dashboard";
@@ -86,6 +88,7 @@ export default async function StoryPage({
       stories={orderedStories}
       canDeleteCurrent={currentUser?.id === story.author.id}
       closeHref={closeHref}
+      storyReactions={Object.fromEntries(reactionSummaries)}
       deleteButton={
         currentUser?.id === story.author.id ? (
           <StoryDeleteButton

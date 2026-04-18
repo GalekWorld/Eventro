@@ -21,6 +21,7 @@ import { parsePostContent } from "@/lib/post-content";
 import { purgeTemporaryPosts } from "@/lib/post-maintenance";
 import { parseVipSpace } from "@/lib/vip-space";
 import { getStoryViewSummaries, listHighlightedStoryIdsForUser } from "@/lib/story-metadata";
+import { getVenueHoursForUser } from "@/lib/venue-hours";
 
 export default async function PrivateProfilePage() {
   await purgeTemporaryPosts();
@@ -101,6 +102,7 @@ export default async function PrivateProfilePage() {
   if (!profile) return null;
 
   const highlightedStoryIds = await listHighlightedStoryIdsForUser(user.id);
+  const venueHours = isVenueProfile ? await getVenueHoursForUser(user.id) : [];
   const highlightedStories = highlightedStoryIds.length
     ? await db.story.findMany({
         where: {
@@ -144,9 +146,16 @@ export default async function PrivateProfilePage() {
       <section className="app-card p-5 sm:p-7">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
           <div className="mx-auto sm:mx-0">
-            <div className="app-story-ring rounded-full p-[3px]">
-              <UserAvatar user={profile} className="h-24 w-24 sm:h-36 sm:w-36" textClassName="text-3xl" />
-            </div>
+            <a href="#story-uploader" className="group block">
+              <div className="app-story-ring rounded-full p-[3px]">
+                <div className="relative">
+                  <UserAvatar user={profile} className="h-24 w-24 sm:h-36 sm:w-36" textClassName="text-3xl" />
+                  <div className="absolute bottom-1 right-1 rounded-full bg-sky-500 px-3 py-1 text-[11px] font-semibold text-white shadow-sm transition group-hover:bg-sky-600">
+                    Historia
+                  </div>
+                </div>
+              </div>
+            </a>
           </div>
 
           <div className="min-w-0 flex-1">
@@ -254,6 +263,7 @@ export default async function PrivateProfilePage() {
                 locationAddress: profile.venueRequest?.address,
                 shareLocation: profile.shareLocation,
                 locationSharingMode: profile.locationSharingMode,
+                venueHours,
               }}
               usernameChangesRemaining={usernameChangesRemaining}
               isVenue={isVenueProfile}
@@ -261,7 +271,7 @@ export default async function PrivateProfilePage() {
           </div>
         </details>
 
-        <details className="app-card overflow-hidden">
+        <details open className="app-card overflow-hidden">
           <summary className="cursor-pointer list-none px-5 py-4">
             <div className="flex items-center justify-between gap-3">
               <div>
@@ -272,7 +282,9 @@ export default async function PrivateProfilePage() {
             </div>
           </summary>
           <div className="grid gap-4 border-t border-neutral-200 p-4 lg:grid-cols-[0.95fr_1.05fr]">
-            <StoryForm />
+            <div id="story-uploader">
+              <StoryForm />
+            </div>
             <div className="app-card p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>

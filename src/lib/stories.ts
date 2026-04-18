@@ -2,12 +2,17 @@ import { db } from "@/lib/db";
 import { listHighlightedStoryIdsForUser } from "@/lib/story-metadata";
 
 const STORY_PURGE_INTERVAL_MS = 5 * 60 * 1000;
+const IS_PRODUCTION_BUILD = process.env.NEXT_PHASE === "phase-production-build";
 
 const storyMaintenanceState = globalThis as typeof globalThis & {
   __eventroStoryPurgeAt?: number;
 };
 
 export async function purgeExpiredStories() {
+  if (IS_PRODUCTION_BUILD) {
+    return;
+  }
+
   const now = Date.now();
   if (storyMaintenanceState.__eventroStoryPurgeAt && now - storyMaintenanceState.__eventroStoryPurgeAt < STORY_PURGE_INTERVAL_MS) {
     return;

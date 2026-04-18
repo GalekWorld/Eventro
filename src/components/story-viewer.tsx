@@ -7,6 +7,8 @@ import { ArrowLeft, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { UserAvatar } from "@/components/user-avatar";
 import { VerifiedBadge } from "@/components/verified-badge";
 import { getVerificationTone, isPubliclyVerified } from "@/lib/user-display";
+import { StoryReactionBar } from "@/components/story-reaction-bar";
+import type { StoryReactionValue } from "@/lib/story-reactions";
 
 type StoryItem = {
   id: string;
@@ -29,15 +31,23 @@ type StoryViewerProps = {
   canDeleteCurrent: boolean;
   closeHref: string;
   deleteButton?: React.ReactNode;
+  storyReactions?: Record<
+    string,
+    {
+      counts: Partial<Record<StoryReactionValue, number>>;
+      currentUserReaction: StoryReactionValue | null;
+    }
+  >;
 };
 
-export function StoryViewer({ currentStoryId, stories, canDeleteCurrent, closeHref, deleteButton }: StoryViewerProps) {
+export function StoryViewer({ currentStoryId, stories, canDeleteCurrent, closeHref, deleteButton, storyReactions = {} }: StoryViewerProps) {
   const router = useRouter();
   const [progress, setProgress] = useState(0);
   const currentIndex = useMemo(() => stories.findIndex((story) => story.id === currentStoryId), [stories, currentStoryId]);
   const currentStory = currentIndex >= 0 ? stories[currentIndex] : null;
   const nextStory = currentIndex >= 0 ? stories[currentIndex + 1] : null;
   const previousStory = currentIndex > 0 ? stories[currentIndex - 1] : null;
+  const reactionSummary = currentStory ? storyReactions[currentStory.id] : undefined;
 
   useEffect(() => {
     setProgress(0);
@@ -117,9 +127,15 @@ export function StoryViewer({ currentStoryId, stories, canDeleteCurrent, closeHr
 
           <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-black/85 via-black/20 to-transparent px-4 pb-8 pt-24 sm:px-5 sm:pb-5">
             <p className="text-sm font-medium text-white">{currentStory.caption ?? "Sin texto"}</p>
-            <p className="mt-2 text-xs text-white/75">
-              {currentStory.durationSec}s de visualización · Disponible durante 24 horas desde su publicación.
-            </p>
+            <p className="mt-2 text-xs text-white/75">{currentStory.durationSec}s de visualizacion · Disponible durante 24 horas desde su publicacion.</p>
+            {!canDeleteCurrent ? (
+              <StoryReactionBar
+                storyId={currentStory.id}
+                redirectPath={`/stories/${currentStory.id}`}
+                currentUserReaction={reactionSummary?.currentUserReaction ?? null}
+                counts={reactionSummary?.counts ?? {}}
+              />
+            ) : null}
           </div>
 
           {previousStory ? (

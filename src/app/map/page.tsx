@@ -11,6 +11,7 @@ import { getMutualFriendIds } from "@/lib/social-graph";
 import { getEventPath } from "@/lib/event-path";
 import { MapLocationButton } from "@/components/map-location-button";
 import { CitySelect } from "@/components/forms/city-select";
+import { formatVenueHoursRows, getVenueHoursMapForUsers, getVenueHoursSummary, isVenueOpenNow } from "@/lib/venue-hours";
 
 type RangeFilter = "today" | "weekend" | "7days";
 
@@ -47,8 +48,8 @@ function getRangeWindow(range: RangeFilter, now: Date) {
     return {
       start: now,
       end: endOfDay(now),
-      helper: "Locales con eventos que empiezan hoy.",
-      chip: "Activos hoy",
+      helper: "Siempre ves los locales del mapa. Este filtro prioriza los eventos que empiezan hoy.",
+      chip: "Eventos hoy",
     };
   }
 
@@ -61,16 +62,16 @@ function getRangeWindow(range: RangeFilter, now: Date) {
     return {
       start: now > start ? now : start,
       end,
-      helper: "Locales con planes del viernes al domingo.",
-      chip: "Activos este finde",
+      helper: "Siempre ves los locales del mapa. Este filtro prioriza los planes del viernes al domingo.",
+      chip: "Eventos este finde",
     };
   }
 
   return {
     start: now,
     end: endOfDay(addDays(now, 7)),
-    helper: "Locales con eventos publicados durante la proxima semana.",
-    chip: "Activos 7 dias",
+    helper: "Siempre ves los locales del mapa. Este filtro prioriza los eventos de la próxima semana.",
+    chip: "Eventos 7 dias",
   };
 }
 
@@ -140,15 +141,6 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
           : {}),
         user: {
           ...(blockedUserIds.length ? { id: { notIn: blockedUserIds } } : {}),
-          events: {
-            some: {
-              published: true,
-              date: {
-                gte: rangeWindow.start,
-                lte: rangeWindow.end,
-              },
-            },
-          },
         },
       },
       include: {
@@ -162,8 +154,7 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
               where: {
                 published: true,
                 date: {
-                  gte: rangeWindow.start,
-                  lte: rangeWindow.end,
+                  gte: now,
                 },
               },
               orderBy: { date: "asc" },
@@ -199,6 +190,7 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
   ]);
 
   const followingIds = new Set(following.map((item) => item.followingId));
+  const venueHoursMap = await getVenueHoursMapForUsers(venues.map((venue) => venue.user.id));
 
   const friends = friendIds.length
     ? await db.user.findMany({
@@ -237,13 +229,19 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
 
   const nearbyVenues = venues
     .map((venue) => {
-      const nextEvent = venue.user.events[0] ?? null;
+      const nextEvent = venue.user.events.find((event) => event.date >= rangeWindow.start && event.date <= rangeWindow.end) ?? null;
       const distance = currentPosition ? getDistanceInKm(currentPosition, { latitude: venue.latitude!, longitude: venue.longitude! }) : null;
+      const venueHours = venueHoursMap.get(venue.user.id) ?? [];
 
       return {
         ...venue,
         nextEvent,
+        nextPublishedEvent: venue.user.events[0] ?? null,
         distance,
+        venueHours,
+        isOpenNow: isVenueOpenNow(venueHours, now),
+        hoursSummary: getVenueHoursSummary(venueHours),
+        hoursRows: formatVenueHoursRows(venueHours),
         directionsUrl: buildDirectionsUrl(venue.latitude!, venue.longitude!),
       };
     })
@@ -278,11 +276,12 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
           type: "venue" as const,
           href: currentUser.username ? `/u/${currentUser.username}` : "/profile/private",
           avatarUrl: currentUser.avatarUrl,
-          imageUrl: null,
-          fallbackText: ownVenueRequest.businessName ?? currentUser.username ?? currentUser.name ?? "L",
-          ctaLabel: "Ver local",
-          profileHref: currentUser.username ? `/u/${currentUser.username}` : undefined,
-          directionsUrl: buildDirectionsUrl(ownVenueRequest.latitude, ownVenueRequest.longitude),
+        imageUrl: null,
+        fallbackText: ownVenueRequest.businessName ?? currentUser.username ?? currentUser.name ?? "L",
+        ctaLabel: "Ver local",
+        statusLabel: "Tu local",
+        profileHref: currentUser.username ? `/u/${currentUser.username}` : undefined,
+        directionsUrl: buildDirectionsUrl(ownVenueRequest.latitude, ownVenueRequest.longitude),
           eventPreviews:
             venues
               .find((venue) => venue.user.id === currentUser.id)
@@ -335,6 +334,7 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
       const nextEvent = venue.nextEvent;
       const nextEventPrice = nextEvent?.price == null ? "Gratis" : formatPrice(Number(nextEvent.price)) ?? "Gratis";
       const profileHref = venue.user.username ? `/u/${venue.user.username}` : undefined;
+      const eventsInRangeCount = venue.user.events.filter((event) => event.date >= rangeWindow.start && event.date <= rangeWindow.end).length;
 
       return {
         id: `venue-${venue.id}`,
@@ -347,10 +347,19 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
         avatarUrl: venue.user.avatarUrl,
         imageUrl: nextEvent?.imageUrl ?? venue.user.avatarUrl ?? null,
         fallbackText: venue.businessName,
-        highlightLabel: `${venue.user.events.length} evento${venue.user.events.length === 1 ? "" : "s"} · ${rangeWindow.chip.toLowerCase()}`,
-        detailTitle: nextEvent?.title ?? "Proximo evento",
-        detailDate: nextEvent ? formatEventDate(nextEvent.date) : undefined,
+        highlightLabel: nextEvent
+          ? `${eventsInRangeCount} evento${eventsInRangeCount === 1 ? "" : "s"} · ${rangeWindow.chip.toLowerCase()}`
+          : "Sin eventos proximos",
+        detailTitle: nextEvent?.title ?? "Ahora mismo sin evento cercano",
+        detailDate: nextEvent
+          ? formatEventDate(nextEvent.date)
+          : venue.nextPublishedEvent
+            ? `Siguiente anuncio: ${formatEventDate(venue.nextPublishedEvent.date)}`
+            : "Sin eventos publicados por ahora",
         detailPrice: nextEvent ? `${nextEventPrice} · ${nextEvent.location}` : undefined,
+        hoursSummary: venue.hoursSummary,
+        hoursRows: venue.hoursRows,
+        statusLabel: venue.isOpenNow ? "Abierto ahora" : "Cerrado ahora",
         ctaLabel: nextEvent ? "Ver entradas" : "Ver local",
         profileHref,
         followUserId: venue.user.id !== currentUser.id && !followingIds.has(venue.user.id) ? venue.user.id : undefined,
@@ -446,8 +455,8 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
         <div className="app-card p-4 sm:p-5">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-semibold text-slate-950">Locales activos</h2>
-              <p className="mt-1 text-sm text-slate-500">{rangeWindow.chip} en {cityFilter || "tu zona"}.</p>
+              <h2 className="text-lg font-semibold text-slate-950">Locales en el mapa</h2>
+              <p className="mt-1 text-sm text-slate-500">Todos los locales visibles en {cityFilter || "tu zona"}, con eventos u horario.</p>
             </div>
             <span className="app-pill">{nearbyVenues.length}</span>
           </div>
@@ -466,7 +475,7 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
                         {venue.distance == null ? venue.city : `${venue.city} · ${venue.distance.toFixed(1)} km`}
                       </p>
                     </div>
-                    <span className="app-pill whitespace-nowrap">{venue.user.events.length} planes</span>
+                    <span className="app-pill whitespace-nowrap">{venue.isOpenNow ? "Abierto" : "Cerrado"}</span>
                   </div>
 
                   {nextEvent ? (
@@ -477,7 +486,20 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
                         {nextEventPrice} · {nextEvent.location}
                       </p>
                     </div>
-                  ) : null}
+                  ) : (
+                    <div className="mt-3 rounded-2xl bg-white p-3">
+                      <p className="text-sm font-semibold text-slate-950">Horario del local</p>
+                      <p className="mt-1 text-xs text-slate-500">{venue.hoursSummary}</p>
+                      <div className="mt-3 grid gap-1.5">
+                        {venue.hoursRows.map((row) => (
+                          <div key={row.day} className="flex items-center justify-between gap-3 text-xs text-slate-600">
+                            <span>{row.day}</span>
+                            <span className="font-medium text-slate-800">{row.value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Link
@@ -494,7 +516,7 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
               );
             })}
 
-            {nearbyVenues.length === 0 ? <p className="text-sm text-slate-500">No hay locales con eventos en este rango por ahora.</p> : null}
+            {nearbyVenues.length === 0 ? <p className="text-sm text-slate-500">No hay locales visibles con esos filtros por ahora.</p> : null}
           </div>
         </div>
 

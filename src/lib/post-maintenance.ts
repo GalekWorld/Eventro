@@ -4,12 +4,17 @@ import { deletePublicFile } from "@/lib/upload";
 const TEMPORARY_POST_RETENTION_HOURS = 72;
 const TEMPORARY_POST_LIMIT = 100;
 const TEMPORARY_POST_PURGE_INTERVAL_MS = 5 * 60 * 1000;
+const IS_PRODUCTION_BUILD = process.env.NEXT_PHASE === "phase-production-build";
 
 const temporaryPostMaintenanceState = globalThis as typeof globalThis & {
   __eventroTemporaryPostPurgeAt?: number;
 };
 
 export async function purgeTemporaryPosts() {
+  if (IS_PRODUCTION_BUILD) {
+    return;
+  }
+
   const now = Date.now();
   if (
     temporaryPostMaintenanceState.__eventroTemporaryPostPurgeAt &&

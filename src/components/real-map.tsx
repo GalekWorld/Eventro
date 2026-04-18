@@ -19,6 +19,11 @@ type RealMapEventPreview = {
   imageUrl?: string | null;
 };
 
+type RealMapHoursRow = {
+  day: string;
+  value: string;
+};
+
 export type RealMapPoint = {
   id: string;
   label: string;
@@ -35,6 +40,9 @@ export type RealMapPoint = {
   detailTitle?: string;
   detailDate?: string;
   detailPrice?: string;
+  hoursSummary?: string;
+  hoursRows?: RealMapHoursRow[];
+  statusLabel?: string;
   profileHref?: string;
   followUserId?: string;
   followRedirectPath?: string;
@@ -195,12 +203,30 @@ function PointCard({
 
       <p className="font-semibold text-slate-950">{point.label}</p>
       <p className="mt-1 text-sm text-slate-600">{point.subtitle}</p>
+      {point.statusLabel ? <p className="mt-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{point.statusLabel}</p> : null}
 
       {point.detailTitle ? (
         <div className="mt-3 rounded-2xl bg-neutral-50 p-3">
           <p className="text-sm font-semibold text-slate-950">{point.detailTitle}</p>
           {point.detailDate ? <p className="mt-1 text-xs text-slate-500">{point.detailDate}</p> : null}
           {point.detailPrice ? <p className="mt-1 text-xs font-medium text-slate-700">{point.detailPrice}</p> : null}
+        </div>
+      ) : null}
+
+      {point.hoursSummary ? (
+        <div className="mt-3 rounded-2xl bg-neutral-50 p-3">
+          <p className="text-sm font-semibold text-slate-950">Horario</p>
+          <p className="mt-1 text-xs text-slate-500">{point.hoursSummary}</p>
+          {point.hoursRows?.length ? (
+            <div className="mt-3 grid gap-1.5">
+              {point.hoursRows.map((row) => (
+                <div key={row.day} className="flex items-center justify-between gap-3 text-xs text-slate-600">
+                  <span>{row.day}</span>
+                  <span className="font-medium text-slate-800">{row.value}</span>
+                </div>
+              ))}
+            </div>
+          ) : null}
         </div>
       ) : null}
 

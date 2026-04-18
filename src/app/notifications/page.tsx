@@ -6,6 +6,7 @@ import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { PaginationControls } from "@/components/pagination-controls";
 import { BrowserNotificationToggle } from "@/components/browser-notification-toggle";
 import { PushNotificationToggle } from "@/components/push-notification-toggle";
+import { UserAvatar } from "@/components/user-avatar";
 
 type SearchParams = Promise<{ page?: string }>;
 
@@ -28,16 +29,17 @@ export default async function NotificationsPage({ searchParams }: { searchParams
     db.notification.findMany({
       where: { recipientId: user.id },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      skip: (page - 1) * NOTIFICATIONS_PER_PAGE,
-      take: NOTIFICATIONS_PER_PAGE,
-      include: {
-        actor: {
-          select: {
-            username: true,
-            name: true,
+        skip: (page - 1) * NOTIFICATIONS_PER_PAGE,
+        take: NOTIFICATIONS_PER_PAGE,
+        include: {
+          actor: {
+            select: {
+              avatarUrl: true,
+              username: true,
+              name: true,
+            },
           },
         },
-      },
     }),
   ]);
 
@@ -69,17 +71,39 @@ export default async function NotificationsPage({ searchParams }: { searchParams
 
       <section className="grid gap-3">
         {notifications.map((notification) => (
-          <article key={notification.id} className="app-card p-4 sm:p-5">
-            <p className="font-semibold text-slate-950">{notification.title}</p>
-            <p className="mt-2 text-sm text-slate-600">{notification.body ?? "Sin detalles."}</p>
-            <p className="mt-3 text-xs text-slate-400">
-              {notification.actor?.username ? `@${notification.actor.username}` : notification.actor?.name ?? "Sistema"}
-            </p>
-            {notification.link ? (
-              <Link href={notification.link} className="mt-4 inline-flex text-sm font-semibold text-sky-500 hover:text-sky-600">
-                Abrir
-              </Link>
-            ) : null}
+          <article
+            key={notification.id}
+            className={`app-card p-4 transition sm:p-5 ${notification.readAt ? "bg-white" : "border-sky-200 bg-sky-50/60"}`}
+          >
+            <div className="flex items-start gap-3">
+              <div className="app-story-ring rounded-full p-[2px]">
+                <UserAvatar
+                  user={notification.actor ?? { name: "Sistema" }}
+                  className="h-12 w-12 bg-neutral-100"
+                  textClassName="text-sm"
+                />
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-slate-950">{notification.title}</p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      {notification.actor?.username ? `@${notification.actor.username}` : notification.actor?.name ?? "Sistema"}
+                    </p>
+                  </div>
+                  {!notification.readAt ? <span className="app-pill bg-sky-100 text-sky-700">Nueva</span> : null}
+                </div>
+
+                <p className="mt-2 text-sm leading-6 text-slate-600">{notification.body ?? "Sin detalles."}</p>
+
+                {notification.link ? (
+                  <Link href={notification.link} className="mt-4 inline-flex text-sm font-semibold text-sky-500 hover:text-sky-600">
+                    Abrir
+                  </Link>
+                ) : null}
+              </div>
+            </div>
           </article>
         ))}
 

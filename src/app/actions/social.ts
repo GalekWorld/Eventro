@@ -25,6 +25,8 @@ import { queuePushNotificationForUser } from "@/lib/web-push";
 import { buildPostContent, parsePostContent } from "@/lib/post-content";
 import { purgeTemporaryPosts } from "@/lib/post-maintenance";
 import { listHighlightedStoryIdsForUser } from "@/lib/story-metadata";
+import { parseVenueHoursFromFormData, saveVenueHours } from "@/lib/venue-hours";
+import { toggleStoryReactionForUser } from "@/lib/story-reactions";
 import { canUserAccessEventChat } from "@/features/events/event.service";
 
 function normalize(value: FormDataEntryValue | null) {
@@ -631,6 +633,7 @@ export async function updateProfileAction(_prevState: ActionState, formData: For
     const desiredUsername = normalizeUsername(normalize(formData.get("username")));
     const avatar = formData.get("avatar");
     const isVenueProfile = currentUser.role === "VENUE" || currentUser.role === "VENUE_PENDING";
+    const venueHours = isVenueProfile ? parseVenueHoursFromFormData(formData) : [];
     const locationSharingMode = isVenueProfile
       ? "GHOST"
       : requestedLocationMode === "EXACT"
@@ -717,6 +720,8 @@ export async function updateProfileAction(_prevState: ActionState, formData: For
           longitude,
         },
       }).catch(() => null);
+
+      await saveVenueHours(currentUser.id, venueHours).catch(() => null);
     }
 
     revalidatePath("/dashboard");
@@ -731,6 +736,43 @@ export async function updateProfileAction(_prevState: ActionState, formData: For
   } catch (error) {
     return { error: error instanceof Error ? error.message : "No se pudo actualizar el perfil." };
   }
+}
+
+export async function toggleStoryReactionAction(formData: FormData) {
+  const currentUser = await requireAuth();
+  const storyId = normalize(formData.get("storyId"));
+  const reaction = normalize(formData.get("reaction"));
+  const redirectPath = toSafeInternalPath(normalize(formData.get("redirectPath")), `/stories/${storyId}`);
+
+  if (!storyId || !reaction) {
+    return;
+  }
+
+  const story = await db.story.findUnique({
+    where: { id: storyId },
+    select: {
+      id: true,
+      authorId: true,
+    },
+  });
+
+  if (!story || story.authorId === currentUser.id) {
+    return;
+  }
+
+  await toggleStoryReactionForUser({
+    storyId,
+    userId: currentUser.id,
+    reaction,
+  });
+
+  revalidatePath(`/stories/${storyId}`);
+  revalidatePath("/dashboard");
+  if (story.authorId === currentUser.id) {
+    revalidatePath("/profile/private");
+  }
+  publishUserRefresh([currentUser.id, story.authorId], "story:reaction", storyId);
+  safeRevalidatePath(redirectPath, `/stories/${storyId}`);
 }
 
 export async function toggleGroupMembershipAction(formData: FormData) {

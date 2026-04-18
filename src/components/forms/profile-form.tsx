@@ -6,6 +6,7 @@ import { updateProfileAction } from "@/app/actions/social";
 import { CitySelect } from "@/components/forms/city-select";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { LocationFields } from "@/components/forms/location-fields";
+import type { VenueHoursDay } from "@/lib/venue-hours";
 
 const initialState: ActionState = {};
 
@@ -24,11 +25,13 @@ export function ProfileForm({
     locationAddress?: string | null;
     shareLocation?: boolean;
     locationSharingMode?: "GHOST" | "APPROXIMATE" | "EXACT" | null;
+    venueHours?: VenueHoursDay[];
   };
   usernameChangesRemaining?: number;
   isVenue?: boolean;
 }) {
   const [state, formAction] = useActionState(updateProfileAction, initialState);
+  const venueHours = defaults.venueHours ?? [];
 
   return (
     <form action={formAction} encType="multipart/form-data" className="app-card p-5">
@@ -74,6 +77,32 @@ export function ProfileForm({
             <option value="APPROXIMATE">Ubicación aproximada</option>
             <option value="EXACT">Ubicación exacta</option>
           </select>
+        ) : null}
+
+        {isVenue ? (
+          <div className="rounded-[20px] border border-neutral-200 bg-neutral-50 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-slate-950">Horario del local</p>
+                <p className="mt-1 text-xs text-slate-500">Se enseñará en el mapa cuando no tengas eventos próximos.</p>
+              </div>
+              <span className="app-pill">Mapa</span>
+            </div>
+
+            <div className="mt-4 grid gap-3">
+              {venueHours.map((day) => (
+                <div key={day.day} className="grid gap-2 rounded-2xl bg-white p-3 sm:grid-cols-[110px_1fr_1fr_auto] sm:items-center">
+                  <p className="text-sm font-medium text-slate-800">{day.label}</p>
+                  <input type="time" name={`venueHours_${day.day}_opensAt`} defaultValue={day.opensAt} className="app-input h-11" />
+                  <input type="time" name={`venueHours_${day.day}_closesAt`} defaultValue={day.closesAt} className="app-input h-11" />
+                  <label className="inline-flex items-center gap-2 text-sm text-slate-600">
+                    <input type="checkbox" name={`venueHours_${day.day}_closed`} defaultChecked={day.closed} className="h-4 w-4 rounded border-neutral-300" />
+                    Cerrado
+                  </label>
+                </div>
+              ))}
+            </div>
+          </div>
         ) : null}
       </div>
 
