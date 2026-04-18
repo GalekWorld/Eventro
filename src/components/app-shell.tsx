@@ -28,7 +28,6 @@ const desktopBaseNav = [
   { href: "/groups", label: "Grupos", icon: Users },
   { href: "/map", label: "Mapa", icon: Map },
   { href: "/messages", label: "Mensajes", icon: MessageCircleMore },
-  { href: "/profile", label: "Perfil", icon: User },
 ];
 
 export async function AppShell({ children }: { children: ReactNode }) {
@@ -49,7 +48,8 @@ export async function AppShell({ children }: { children: ReactNode }) {
     user = null;
   }
 
-  const nav = [...desktopBaseNav];
+  const profileHref = user ? "/profile/private" : "/login";
+  const nav = [...desktopBaseNav, { href: profileHref, label: "Perfil", icon: User }];
   const canScan =
     user &&
     (user.role === "ADMIN" ||
@@ -161,7 +161,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
         </div>
       </div>
 
-      <MobileNav />
+      <MobileNav profileHref={profileHref} />
     </div>
   );
 }

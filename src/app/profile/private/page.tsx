@@ -22,22 +22,35 @@ import { purgeTemporaryPosts } from "@/lib/post-maintenance";
 import { parseVipSpace } from "@/lib/vip-space";
 import { getStoryViewSummaries, listHighlightedStoryIdsForUser } from "@/lib/story-metadata";
 import { getVenueHoursForUser } from "@/lib/venue-hours";
+import { ProfileStoryLauncher } from "@/components/profile-story-launcher";
+import { StoryCardLink } from "@/components/story-card-link";
 
 export default async function PrivateProfilePage() {
-  await purgeTemporaryPosts();
-  await purgeExpiredStories();
+  void purgeTemporaryPosts().catch(() => null);
+  void purgeExpiredStories().catch(() => null);
   const user = await requireAuth();
   const now = new Date();
-  const blockedUserIds = await getBlockedUserIds(user.id);
   const isVenueProfile = user.role === "VENUE" || user.role === "VENUE_PENDING";
-  const canScan =
-    user.role === "ADMIN" ||
-    Boolean(
-      await db.venueDoorStaff.findFirst({
-        where: { staffUserId: user.id },
-        select: { id: true },
-      }),
-    );
+  const recentUsernameCutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const [blockedUserIds, canScan, usernameChangesUsed] = await Promise.all([
+    getBlockedUserIds(user.id),
+    user.role === "ADMIN"
+      ? Promise.resolve(true)
+      : db.venueDoorStaff
+          .findFirst({
+            where: { staffUserId: user.id },
+            select: { id: true },
+          })
+          .then(Boolean),
+    db.usernameChange.count({
+      where: {
+        userId: user.id,
+        createdAt: {
+          gte: recentUsernameCutoff,
+        },
+      },
+    }),
+  ]);
 
   const profile = await db.user.findUnique({
     where: { id: user.id },
@@ -101,8 +114,11 @@ export default async function PrivateProfilePage() {
 
   if (!profile) return null;
 
-  const highlightedStoryIds = await listHighlightedStoryIdsForUser(user.id);
-  const venueHours = isVenueProfile ? await getVenueHoursForUser(user.id) : [];
+  const [highlightedStoryIds, venueHours, storyViewSummaries] = await Promise.all([
+    listHighlightedStoryIdsForUser(user.id),
+    isVenueProfile ? getVenueHoursForUser(user.id) : Promise.resolve([]),
+    getStoryViewSummaries(profile.stories.map((story) => story.id)),
+  ]);
   const highlightedStories = highlightedStoryIds.length
     ? await db.story.findMany({
         where: {
@@ -111,17 +127,8 @@ export default async function PrivateProfilePage() {
         orderBy: { createdAt: "desc" },
       })
     : [];
-  const storyViewSummaries = await getStoryViewSummaries(profile.stories.map((story) => story.id));
 
   const emailConfigured = isEmailDeliveryConfigured();
-  const usernameChangesUsed = await db.usernameChange.count({
-    where: {
-      userId: user.id,
-      createdAt: {
-        gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-      },
-    },
-  });
   const usernameChangesRemaining = profile.role === "ADMIN" ? Number.POSITIVE_INFINITY : Math.max(0, 3 - usernameChangesUsed);
   const quickLinks = [{ href: "/tickets", label: "Mis entradas", icon: QrCode }];
 
@@ -146,7 +153,7 @@ export default async function PrivateProfilePage() {
       <section className="app-card p-5 sm:p-7">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
           <div className="mx-auto sm:mx-0">
-            <a href="#story-uploader" className="group block">
+            <ProfileStoryLauncher className="group block">
               <div className="app-story-ring rounded-full p-[3px]">
                 <div className="relative">
                   <UserAvatar user={profile} className="h-24 w-24 sm:h-36 sm:w-36" textClassName="text-3xl" />
@@ -155,7 +162,7 @@ export default async function PrivateProfilePage() {
                   </div>
                 </div>
               </div>
-            </a>
+            </ProfileStoryLauncher>
           </div>
 
           <div className="min-w-0 flex-1">
@@ -301,14 +308,14 @@ export default async function PrivateProfilePage() {
 
                     return (
                       <div key={story.id} className="min-w-[104px] max-w-[104px] text-center sm:min-w-[116px] sm:max-w-[116px]">
-                        <Link href={`/stories/${story.id}?from=profile-private`} className="block">
+                        <StoryCardLink href={`/stories/${story.id}?from=profile-private`} className="block">
                           <div className="app-story-ring rounded-[28px] p-[2px]">
                             <div className="aspect-[9/16] overflow-hidden rounded-[26px] bg-white">
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img src={story.imageUrl} alt={story.caption ?? "Historia"} className="h-full w-full object-cover" />
                             </div>
                           </div>
-                        </Link>
+                        </StoryCardLink>
                         <p className="mt-2 line-clamp-2 text-xs text-slate-500">{story.caption ?? "Historia"}</p>
                         <p className="mt-1 text-[11px] font-medium text-slate-400">{views.count} vista{views.count === 1 ? "" : "s"}</p>
                         <div className="mt-2 flex justify-center">
@@ -336,7 +343,11 @@ export default async function PrivateProfilePage() {
             </div>
             <div className="mt-4 flex gap-4 overflow-x-auto pb-1">
               {highlightedStories.map((story) => (
-                <Link key={story.id} href={`/stories/${story.id}?from=profile-private`} className="block min-w-[108px] max-w-[108px] sm:min-w-[124px] sm:max-w-[124px]">
+                <StoryCardLink
+                  key={story.id}
+                  href={`/stories/${story.id}?from=profile-private`}
+                  className="block min-w-[108px] max-w-[108px] sm:min-w-[124px] sm:max-w-[124px]"
+                >
                   <div className="overflow-hidden rounded-[28px] border border-neutral-200 bg-neutral-50">
                     <div className="aspect-[9/16] overflow-hidden">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -346,7 +357,7 @@ export default async function PrivateProfilePage() {
                       <p className="line-clamp-2 text-xs text-slate-600">{story.caption ?? "Historia destacada"}</p>
                     </div>
                   </div>
-                </Link>
+                </StoryCardLink>
               ))}
             </div>
           </section>

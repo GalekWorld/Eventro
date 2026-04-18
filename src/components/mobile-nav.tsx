@@ -4,14 +4,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Compass, Map, MessageCircleMore, Search, User } from "lucide-react";
 
-export function MobileNav() {
+export function MobileNav({ profileHref = "/profile" }: { profileHref?: string }) {
   const router = useRouter();
   const items = [
     { href: "/dashboard", label: "Inicio", icon: Compass },
     { href: "/search", label: "Buscar", icon: Search },
     { href: "/map", label: "Mapa", icon: Map },
     { href: "/messages", label: "Chats", icon: MessageCircleMore },
-    { href: "/profile", label: "Perfil", icon: User },
+    { href: profileHref, label: "Perfil", icon: User },
   ];
 
   return (

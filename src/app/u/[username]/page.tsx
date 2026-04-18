@@ -17,10 +17,12 @@ import { parsePostContent } from "@/lib/post-content";
 import { purgeTemporaryPosts } from "@/lib/post-maintenance";
 import { parseVipSpace } from "@/lib/vip-space";
 import { listHighlightedStoryIdsForUser } from "@/lib/story-metadata";
+import { ProfileStoryLauncher } from "@/components/profile-story-launcher";
+import { StoryCardLink } from "@/components/story-card-link";
 
 export default async function PublicProfilePage({ params }: { params: Promise<{ username: string }> }) {
-  await purgeTemporaryPosts();
-  await purgeExpiredStories();
+  void purgeTemporaryPosts().catch(() => null);
+  void purgeExpiredStories().catch(() => null);
   const { username } = await params;
   const currentUser = await getCurrentUser();
   const now = new Date();
@@ -115,14 +117,17 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
           <div className="mx-auto sm:mx-0">
             <div className="relative">
-              <div className="app-story-ring rounded-full p-[3px]">
-                <UserAvatar user={profile} className="h-24 w-24 sm:h-36 sm:w-36" textClassName="text-3xl" />
-              </div>
               {isOwnProfile ? (
-                <Link href="/profile/private#story-uploader" aria-label="Subir historia" className="absolute inset-0 rounded-full">
-                  <span className="sr-only">Subir historia</span>
-                </Link>
-              ) : null}
+                <ProfileStoryLauncher>
+                  <div className="app-story-ring rounded-full p-[3px]">
+                    <UserAvatar user={profile} className="h-24 w-24 sm:h-36 sm:w-36" textClassName="text-3xl" />
+                  </div>
+                </ProfileStoryLauncher>
+              ) : (
+                <div className="app-story-ring rounded-full p-[3px]">
+                  <UserAvatar user={profile} className="h-24 w-24 sm:h-36 sm:w-36" textClassName="text-3xl" />
+                </div>
+              )}
             </div>
           </div>
 
@@ -195,7 +200,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
         <section className="app-card overflow-x-auto p-4">
           <div className="flex gap-4">
             {profile.stories.map((story) => (
-              <Link key={story.id} href={`/stories/${story.id}`} className="min-w-[104px] max-w-[104px] text-center sm:min-w-[116px] sm:max-w-[116px]">
+              <StoryCardLink key={story.id} href={`/stories/${story.id}`} className="min-w-[104px] max-w-[104px] text-center sm:min-w-[116px] sm:max-w-[116px]">
                 <div className="app-story-ring rounded-[28px] p-[2px]">
                   <div className="aspect-[9/16] overflow-hidden rounded-[26px] bg-white">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -203,7 +208,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
                   </div>
                 </div>
                 <p className="mt-2 line-clamp-2 text-xs text-slate-500">{story.caption ?? "Historia"}</p>
-              </Link>
+              </StoryCardLink>
             ))}
           </div>
         </section>
@@ -217,7 +222,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
           </div>
           <div className="flex gap-4">
             {highlightedStories.map((story) => (
-              <Link key={story.id} href={`/stories/${story.id}`} className="block min-w-[108px] max-w-[108px] sm:min-w-[124px] sm:max-w-[124px]">
+              <StoryCardLink key={story.id} href={`/stories/${story.id}`} className="block min-w-[108px] max-w-[108px] sm:min-w-[124px] sm:max-w-[124px]">
                 <div className="overflow-hidden rounded-[28px] border border-neutral-200 bg-neutral-50">
                   <div className="aspect-[9/16] overflow-hidden">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -227,7 +232,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
                     <p className="line-clamp-2 text-xs text-slate-600">{story.caption ?? "Historia destacada"}</p>
                   </div>
                 </div>
-              </Link>
+              </StoryCardLink>
             ))}
           </div>
         </section>

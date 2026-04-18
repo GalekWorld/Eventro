@@ -427,7 +427,6 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
                         <span className="app-pill whitespace-nowrap">{venue.isOpenNow ? "Abierto" : "Cerrado"}</span>
                         {venue.distance != null ? <span className="app-pill whitespace-nowrap">{venue.distance.toFixed(1)} km</span> : null}
                       </div>
-                      <p className="mt-2 text-xs text-slate-500">{venue.hoursSummary}</p>
                     </div>
                   </div>
 
@@ -438,27 +437,11 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
                       <p className="mt-1 text-xs font-medium text-slate-700">
                         {nextEventPrice} · {nextEvent.location}
                       </p>
-                      <div className="mt-3 grid gap-1.5">
-                        {venue.hoursRows.map((row) => (
-                          <div key={row.day} className="flex items-center justify-between gap-3 text-xs text-slate-600">
-                            <span>{row.day}</span>
-                            <span className="font-medium text-slate-800">{row.value}</span>
-                          </div>
-                        ))}
-                      </div>
                     </div>
                   ) : (
                     <div className="mt-3 rounded-2xl bg-white p-3">
-                      <p className="text-sm font-semibold text-slate-950">Horario del local</p>
-                      <p className="mt-1 text-xs text-slate-500">{venue.hoursSummary}</p>
-                      <div className="mt-3 grid gap-1.5">
-                        {venue.hoursRows.map((row) => (
-                          <div key={row.day} className="flex items-center justify-between gap-3 text-xs text-slate-600">
-                            <span>{row.day}</span>
-                            <span className="font-medium text-slate-800">{row.value}</span>
-                          </div>
-                        ))}
-                      </div>
+                      <p className="text-sm font-semibold text-slate-950">Sin eventos proximos</p>
+                      <p className="mt-1 text-xs text-slate-500">Abre el desplegable para ver el horario completo y las acciones del local.</p>
                     </div>
                   )}
 
@@ -472,16 +455,30 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
                       </span>
                       <span className="text-xs font-medium text-slate-500 transition group-open:text-sky-600">Abrir</span>
                     </summary>
-                    <div className="mt-2 flex flex-wrap gap-2 rounded-2xl bg-white/70 p-1">
-                      <Link
-                        href={nextEvent ? getEventPath(nextEvent) : venue.user.username ? `/u/${venue.user.username}` : "/events"}
-                        className="app-button-primary"
-                      >
-                        Ver local
-                      </Link>
-                      <Link href={venue.directionsUrl} target="_blank" rel="noreferrer" className="app-button-secondary">
-                        Como llegar
-                      </Link>
+                    <div className="mt-2 rounded-2xl bg-white/70 p-3">
+                      <div className="rounded-2xl bg-white p-3">
+                        <p className="text-sm font-semibold text-slate-950">Horario del local</p>
+                        <p className="mt-1 text-xs text-slate-500">{venue.hoursSummary}</p>
+                        <div className="mt-3 grid gap-1.5">
+                          {venue.hoursRows.map((row) => (
+                            <div key={row.day} className="flex items-center justify-between gap-3 text-xs text-slate-600">
+                              <span>{row.day}</span>
+                              <span className="font-medium text-slate-800">{row.value}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <Link
+                          href={nextEvent ? getEventPath(nextEvent) : venue.user.username ? `/u/${venue.user.username}` : "/events"}
+                          className="app-button-primary"
+                        >
+                          Ver local
+                        </Link>
+                        <Link href={venue.directionsUrl} target="_blank" rel="noreferrer" className="app-button-secondary">
+                          Como llegar
+                        </Link>
+                      </div>
                     </div>
                   </details>
                 </div>

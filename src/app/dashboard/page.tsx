@@ -19,6 +19,7 @@ import { parsePostContent } from "@/lib/post-content";
 import { purgeTemporaryPosts } from "@/lib/post-maintenance";
 import { PostLikeButton } from "@/components/post-like-button";
 import { DashboardFeedFilters } from "@/components/dashboard-feed-filters";
+import { StoryCardLink } from "@/components/story-card-link";
 
 type SearchParams = Promise<{ tab?: string; city?: string; page?: string }>;
 
@@ -30,8 +31,8 @@ function parsePage(value?: string) {
 }
 
 export default async function DashboardPage({ searchParams }: { searchParams: SearchParams }) {
-  await purgeTemporaryPosts();
-  await purgeExpiredStories();
+  void purgeTemporaryPosts().catch(() => null);
+  void purgeExpiredStories().catch(() => null);
 
   const params = await searchParams;
   const user = await getCurrentUser();
@@ -312,7 +313,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
         <section className="app-card overflow-x-auto p-2.5 sm:p-3">
           <div className="flex gap-3">
             {stories.map((story) => (
-              <Link key={story.id} href={`/stories/${story.id}`} className="min-w-[78px] max-w-[78px] text-center sm:min-w-[86px] sm:max-w-[86px]">
+              <StoryCardLink key={story.id} href={`/stories/${story.id}`} className="min-w-[78px] max-w-[78px] text-center sm:min-w-[86px] sm:max-w-[86px]">
                 <div className="app-story-ring rounded-[24px] p-[2px]">
                   <div className="relative aspect-[9/16] overflow-hidden rounded-[22px] bg-white text-lg font-semibold text-slate-900">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -325,7 +326,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
                   </div>
                 </div>
                 <p className="mt-1.5 truncate text-[11px] text-slate-600">@{story.author.username ?? "nuevo"}</p>
-              </Link>
+              </StoryCardLink>
             ))}
 
             {stories.length === 0 ? (

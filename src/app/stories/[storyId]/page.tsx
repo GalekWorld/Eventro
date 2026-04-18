@@ -15,7 +15,7 @@ export default async function StoryPage({
   params: Promise<{ storyId: string }>;
   searchParams: Promise<{ from?: string }>;
 }) {
-  await purgeExpiredStories();
+  void purgeExpiredStories().catch(() => null);
   const { storyId } = await params;
   const routeSearchParams = await searchParams;
   const currentUser = await getCurrentUser();
@@ -54,11 +54,11 @@ export default async function StoryPage({
   if (!story) notFound();
 
   if (currentUser) {
-    await registerStoryView({
+    void registerStoryView({
       storyId: story.id,
       viewerId: currentUser.id,
       ownerId: story.author.id,
-    });
+    }).catch(() => null);
   }
 
   const selectedAuthorId = story.author.id;

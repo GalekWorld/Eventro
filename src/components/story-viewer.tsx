@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { UserAvatar } from "@/components/user-avatar";
@@ -42,6 +42,7 @@ type StoryViewerProps = {
 
 export function StoryViewer({ currentStoryId, stories, canDeleteCurrent, closeHref, deleteButton, storyReactions = {} }: StoryViewerProps) {
   const router = useRouter();
+  const [, startTransition] = useTransition();
   const [progress, setProgress] = useState(0);
   const currentIndex = useMemo(() => stories.findIndex((story) => story.id === currentStoryId), [stories, currentStoryId]);
   const currentStory = currentIndex >= 0 ? stories[currentIndex] : null;
@@ -49,9 +50,23 @@ export function StoryViewer({ currentStoryId, stories, canDeleteCurrent, closeHr
   const previousStory = currentIndex > 0 ? stories[currentIndex - 1] : null;
   const reactionSummary = currentStory ? storyReactions[currentStory.id] : undefined;
 
+  const goToStory = useCallback((storyId: string) => {
+    router.prefetch(`/stories/${storyId}`);
+    startTransition(() => {
+      router.replace(`/stories/${storyId}`);
+    });
+  }, [router, startTransition]);
+
   useEffect(() => {
     setProgress(0);
     if (!currentStory) return;
+
+    if (nextStory) {
+      router.prefetch(`/stories/${nextStory.id}`);
+    }
+    if (previousStory) {
+      router.prefetch(`/stories/${previousStory.id}`);
+    }
 
     const durationMs = Math.min(Math.max(currentStory.durationSec, 5), 15) * 1000;
     const startedAt = Date.now();
@@ -62,7 +77,7 @@ export function StoryViewer({ currentStoryId, stories, canDeleteCurrent, closeHr
 
     const timeout = window.setTimeout(() => {
       if (nextStory) {
-        router.replace(`/stories/${nextStory.id}`);
+        goToStory(nextStory.id);
       } else {
         router.replace(closeHref);
       }
@@ -72,7 +87,7 @@ export function StoryViewer({ currentStoryId, stories, canDeleteCurrent, closeHr
       window.clearInterval(interval);
       window.clearTimeout(timeout);
     };
-  }, [closeHref, currentStory, nextStory, router]);
+  }, [closeHref, currentStory, goToStory, nextStory, previousStory, router]);
 
   if (!currentStory) {
     return null;
@@ -141,7 +156,7 @@ export function StoryViewer({ currentStoryId, stories, canDeleteCurrent, closeHr
           {previousStory ? (
             <button
               type="button"
-              onClick={() => router.replace(`/stories/${previousStory.id}`)}
+              onClick={() => goToStory(previousStory.id)}
               className="absolute left-3 top-1/2 z-20 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur"
               aria-label="Historia anterior"
             >
@@ -160,7 +175,7 @@ export function StoryViewer({ currentStoryId, stories, canDeleteCurrent, closeHr
           {nextStory ? (
             <button
               type="button"
-              onClick={() => router.replace(`/stories/${nextStory.id}`)}
+              onClick={() => goToStory(nextStory.id)}
               className="absolute right-3 top-1/2 z-20 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur"
               aria-label="Siguiente historia"
             >
