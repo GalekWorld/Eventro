@@ -18,7 +18,7 @@ import { PaginationControls } from "@/components/pagination-controls";
 import { parsePostContent } from "@/lib/post-content";
 import { purgeTemporaryPosts } from "@/lib/post-maintenance";
 import { PostLikeButton } from "@/components/post-like-button";
-import { CitySelect } from "@/components/forms/city-select";
+import { DashboardFeedFilters } from "@/components/dashboard-feed-filters";
 
 type SearchParams = Promise<{ tab?: string; city?: string; page?: string }>;
 
@@ -282,32 +282,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
 
       <section className="min-w-0 space-y-3">
         <section className="app-card p-2.5 sm:p-4">
-          <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-            <div className="grid grid-cols-2 gap-1 rounded-[16px] bg-neutral-100 p-1 sm:inline-flex sm:rounded-full">
-              <Link
-                href={`/dashboard?tab=discover${cityFilter ? `&city=${encodeURIComponent(cityFilter)}` : ""}`}
-                prefetch
-                className={`rounded-[12px] px-3 py-1.5 text-center text-sm font-medium transition sm:rounded-full ${activeTab === "discover" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500"}`}
-              >
-                Descubre
-              </Link>
-              <Link
-                href={`/dashboard?tab=friends${cityFilter ? `&city=${encodeURIComponent(cityFilter)}` : ""}`}
-                prefetch
-                className={`rounded-[12px] px-3 py-1.5 text-center text-sm font-medium transition sm:rounded-full ${activeTab === "friends" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500"}`}
-              >
-                Amigos
-              </Link>
-            </div>
-
-            <form className="grid w-full gap-2 sm:grid-cols-[minmax(0,1fr)_auto] lg:w-[300px]">
-              <input type="hidden" name="tab" value={activeTab} />
-              <CitySelect name="city" defaultValue={cityFilter} className="app-input h-10 min-w-0" emptyLabel="Todas las ciudades" />
-              <button className="app-button-secondary w-full sm:w-auto" type="submit">
-                Filtrar
-              </button>
-            </form>
-          </div>
+          <DashboardFeedFilters activeTab={activeTab} cityFilter={cityFilter} />
           <p className="mt-2 text-xs text-slate-500">
             {activeTab === "discover"
               ? "Descubre publicaciones de toda la comunidad."

@@ -11,6 +11,20 @@ const STORY_WIDTH = 1080;
 const STORY_HEIGHT = 1920;
 const OUTPUT_MIME = "image/webp";
 
+function getNormalizedImageType(blob: Blob) {
+  if (blob.type === "image/png" || blob.type === "image/jpeg" || blob.type === "image/webp") {
+    return blob.type;
+  }
+
+  return OUTPUT_MIME;
+}
+
+function getImageExtension(type: string) {
+  if (type === "image/png") return "png";
+  if (type === "image/jpeg") return "jpg";
+  return "webp";
+}
+
 function loadImage(file: File) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
     const url = URL.createObjectURL(file);
@@ -69,9 +83,11 @@ async function normalizeStoryImage(file: File) {
   context.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
 
   const blob = await canvasToBlob(canvas, OUTPUT_MIME, 0.92);
+  const normalizedType = getNormalizedImageType(blob);
+  const baseName = file.name.replace(/\.[^.]+$/, "") || "story";
 
-  return new File([blob], `${file.name.replace(/\.[^.]+$/, "") || "story"}.webp`, {
-    type: OUTPUT_MIME,
+  return new File([blob], `${baseName}.${getImageExtension(normalizedType)}`, {
+    type: normalizedType,
     lastModified: Date.now(),
   });
 }
@@ -126,7 +142,7 @@ export function StoryForm() {
               const normalized = await normalizeStoryImage(file);
               setNormalizedImage(normalized);
               setFileError("");
-              setFileInfo(`Eventro ajustara la foto automaticamente a ${STORY_WIDTH}x${STORY_HEIGHT}.`);
+              setFileInfo(`Eventro ajustara la foto automaticamente a ${STORY_WIDTH}x${STORY_HEIGHT} antes de subirla.`);
             } catch (error) {
               setFileError(error instanceof Error ? error.message : "No se pudo preparar la imagen.");
               event.currentTarget.value = "";

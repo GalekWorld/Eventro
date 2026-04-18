@@ -367,7 +367,7 @@ export function RealMap({
         <RecenterControl />
         <MapInteractionLayer selectedPoint={selectedPoint} onCloseSelectedPoint={() => setSelectedPointId(null)} />
 
-        {enableClustering && !isTouchDevice && points.length > 1 ? <MarkerClusterGroup chunkedLoading>{markerNodes}</MarkerClusterGroup> : markerNodes}
+        {enableClustering && !isTouchDevice && points.length > 1 ? <MarkerClusterGroup>{markerNodes}</MarkerClusterGroup> : markerNodes}
       </MapContainer>
 
       {isTouchDevice && selectedPoint ? (

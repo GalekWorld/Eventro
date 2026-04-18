@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ChevronDown } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { approximateCoordinate, getDistanceInKm } from "@/lib/geo";
@@ -9,8 +10,7 @@ import { LiveLocationSync } from "@/components/live-location-sync";
 import { getBlockedUserIds } from "@/lib/privacy";
 import { getMutualFriendIds } from "@/lib/social-graph";
 import { getEventPath } from "@/lib/event-path";
-import { MapLocationButton } from "@/components/map-location-button";
-import { CitySelect } from "@/components/forms/city-select";
+import { MapFilters } from "@/components/map-filters";
 import { formatVenueHoursRows, getVenueHoursMapForUsers, getVenueHoursSummary, isVenueOpenNow } from "@/lib/venue-hours";
 
 type RangeFilter = "today" | "weekend" | "7days";
@@ -73,18 +73,6 @@ function getRangeWindow(range: RangeFilter, now: Date) {
     helper: "Siempre ves los locales del mapa. Este filtro prioriza los eventos de la próxima semana.",
     chip: "Eventos 7 dias",
   };
-}
-
-function buildMapHref(range: RangeFilter, city?: string) {
-  const params = new URLSearchParams();
-  params.set("range", range);
-
-  if (city?.trim()) {
-    params.set("city", city.trim());
-  }
-
-  const query = params.toString();
-  return query ? `/map?${query}` : "/map";
 }
 
 function buildDirectionsUrl(latitude: number, longitude: number) {
@@ -363,7 +351,7 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
         ctaLabel: nextEvent ? "Ver entradas" : "Ver local",
         profileHref,
         followUserId: venue.user.id !== currentUser.id && !followingIds.has(venue.user.id) ? venue.user.id : undefined,
-        followRedirectPath: buildMapHref(range, cityFilter),
+        followRedirectPath: `/map?range=${range}${cityFilter ? `&city=${encodeURIComponent(cityFilter)}` : ""}`,
         directionsUrl: venue.directionsUrl,
         eventPreviews: venue.user.events.map((event) => ({
           id: event.id,
@@ -402,55 +390,15 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
             <h1 className="app-screen-title">Mapa</h1>
             <p className="mt-2 app-screen-subtitle">{rangeWindow.helper}</p>
           </div>
-          <details className="w-full sm:w-auto sm:min-w-[320px]">
-            <summary className="flex cursor-pointer list-none items-center justify-between rounded-[22px] border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-neutral-100">
-              <span>Filtros</span>
-              <span className="app-pill">{rangeOptions.find((option) => option.value === range)?.label ?? "7 dias"}</span>
-            </summary>
-
-            <div className="mt-3 grid gap-3 rounded-[22px] border border-neutral-200 bg-white p-3 sm:p-4">
-              <div className="flex flex-wrap gap-2">
-                <Link href="/profile/private" className="app-button-secondary">
-                  Ajustar ubicacion
-                </Link>
-                {!isVenueUser ? <MapLocationButton /> : null}
-              </div>
-
-              {!currentPosition ? (
-                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                  {isVenueUser
-                    ? "Aun no hay una ubicacion fija guardada para tu local. Puedes seguir filtrando el mapa y ajustarla despues desde el perfil privado."
-                    : "Todavia no has guardado una ubicacion exacta valida para centrar el mapa en ti. Aun asi puedes usar filtros y ver amigos o locales visibles."}
-                </div>
-              ) : null}
-
-              <div className="grid gap-2 sm:grid-cols-3">
-                {rangeOptions.map((option) => (
-                  <Link
-                    key={option.value}
-                    href={buildMapHref(option.value, cityFilter)}
-                    className={`rounded-[20px] border px-4 py-3 text-left transition ${
-                      range === option.value
-                        ? "border-sky-200 bg-sky-50 shadow-sm"
-                        : "border-neutral-200 bg-white hover:border-neutral-300 hover:bg-neutral-50"
-                    }`}
-                  >
-                    <p className="text-sm font-semibold text-slate-950">{option.label}</p>
-                    <p className="mt-1 text-xs text-slate-500">{option.helper}</p>
-                  </Link>
-                ))}
-              </div>
-
-              <form className="grid gap-3 sm:grid-cols-[1fr_auto]">
-                <CitySelect name="city" defaultValue={cityFilter} emptyLabel="Todas las ciudades" />
-                <input type="hidden" name="range" value={range} />
-                <button type="submit" className="app-button-primary">
-                  Aplicar filtro
-                </button>
-              </form>
-            </div>
-          </details>
+          <MapFilters range={range} cityFilter={cityFilter} rangeOptions={rangeOptions} isVenueUser={isVenueUser} />
         </div>
+        {!currentPosition ? (
+          <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            {isVenueUser
+              ? "Aun no hay una ubicacion fija guardada para tu local. Puedes seguir filtrando el mapa y ajustarla despues desde el perfil privado."
+              : "Todavia no has guardado una ubicacion exacta valida para centrar el mapa en ti. Aun asi puedes usar filtros y ver amigos o locales visibles."}
+          </div>
+        ) : null}
       </section>
 
       <MapView center={mapCenter} points={points} />
@@ -472,14 +420,15 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
 
               return (
                 <div key={venue.id} className="rounded-3xl bg-neutral-50 p-4">
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-slate-950">{venue.businessName}</p>
-                      <p className="mt-1 text-xs text-slate-500">
-                        {venue.distance == null ? venue.city : `${venue.city} · ${venue.distance.toFixed(1)} km`}
-                      </p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <span className="app-pill whitespace-nowrap">{venue.isOpenNow ? "Abierto" : "Cerrado"}</span>
+                        {venue.distance != null ? <span className="app-pill whitespace-nowrap">{venue.distance.toFixed(1)} km</span> : null}
+                      </div>
+                      <p className="mt-2 text-xs text-slate-500">{venue.hoursSummary}</p>
                     </div>
-                    <span className="app-pill whitespace-nowrap">{venue.isOpenNow ? "Abierto" : "Cerrado"}</span>
                   </div>
 
                   {nextEvent ? (
@@ -489,6 +438,14 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
                       <p className="mt-1 text-xs font-medium text-slate-700">
                         {nextEventPrice} · {nextEvent.location}
                       </p>
+                      <div className="mt-3 grid gap-1.5">
+                        {venue.hoursRows.map((row) => (
+                          <div key={row.day} className="flex items-center justify-between gap-3 text-xs text-slate-600">
+                            <span>{row.day}</span>
+                            <span className="font-medium text-slate-800">{row.value}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   ) : (
                     <div className="mt-3 rounded-2xl bg-white p-3">
@@ -505,17 +462,28 @@ export default async function MapPage({ searchParams }: { searchParams: SearchPa
                     </div>
                   )}
 
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <Link
-                      href={nextEvent ? getEventPath(nextEvent) : venue.user.username ? `/u/${venue.user.username}` : "/events"}
-                      className="app-button-primary"
-                    >
-                      Ver local
-                    </Link>
-                    <Link href={venue.directionsUrl} target="_blank" rel="noreferrer" className="app-button-secondary">
-                      Como llegar
-                    </Link>
-                  </div>
+                  <details className="group mt-3">
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-2xl border border-neutral-200 bg-white px-4 py-3 text-sm font-semibold text-slate-950 transition hover:border-neutral-300 hover:bg-neutral-100">
+                      <span className="flex items-center gap-2">
+                        <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-sky-50 text-sky-600 transition group-open:scale-105">
+                          <ChevronDown className="h-4 w-4 transition duration-200 group-open:rotate-180" />
+                        </span>
+                        <span>Acciones del mapa</span>
+                      </span>
+                      <span className="text-xs font-medium text-slate-500 transition group-open:text-sky-600">Abrir</span>
+                    </summary>
+                    <div className="mt-2 flex flex-wrap gap-2 rounded-2xl bg-white/70 p-1">
+                      <Link
+                        href={nextEvent ? getEventPath(nextEvent) : venue.user.username ? `/u/${venue.user.username}` : "/events"}
+                        className="app-button-primary"
+                      >
+                        Ver local
+                      </Link>
+                      <Link href={venue.directionsUrl} target="_blank" rel="noreferrer" className="app-button-secondary">
+                        Como llegar
+                      </Link>
+                    </div>
+                  </details>
                 </div>
               );
             })}

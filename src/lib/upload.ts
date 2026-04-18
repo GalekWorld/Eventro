@@ -123,29 +123,43 @@ function parseJpegDimensions(bytes: Buffer) {
 }
 
 function parseWebpDimensions(bytes: Buffer) {
-  if (bytes.length < 30) return null;
-  const chunkType = bytes.subarray(12, 16).toString("ascii");
+  if (bytes.length < 20) return null;
 
-  if (chunkType === "VP8X" && bytes.length >= 30) {
-    return {
-      width: 1 + bytes[24] + (bytes[25] << 8) + (bytes[26] << 16),
-      height: 1 + bytes[27] + (bytes[28] << 8) + (bytes[29] << 16),
-    };
-  }
+  let chunkOffset = 12;
 
-  if (chunkType === "VP8 " && bytes.length >= 30) {
-    return {
-      width: bytes.readUInt16LE(26) & 0x3fff,
-      height: bytes.readUInt16LE(28) & 0x3fff,
-    };
-  }
+  while (chunkOffset + 8 <= bytes.length) {
+    const chunkType = bytes.subarray(chunkOffset, chunkOffset + 4).toString("ascii");
+    const chunkSize = bytes.readUInt32LE(chunkOffset + 4);
+    const dataOffset = chunkOffset + 8;
 
-  if (chunkType === "VP8L" && bytes.length >= 25) {
-    const bits = bytes.readUInt32LE(21);
-    return {
-      width: (bits & 0x3fff) + 1,
-      height: ((bits >> 14) & 0x3fff) + 1,
-    };
+    if (chunkType === "VP8X" && dataOffset + 10 <= bytes.length) {
+      return {
+        width: 1 + bytes[dataOffset + 4] + (bytes[dataOffset + 5] << 8) + (bytes[dataOffset + 6] << 16),
+        height: 1 + bytes[dataOffset + 7] + (bytes[dataOffset + 8] << 8) + (bytes[dataOffset + 9] << 16),
+      };
+    }
+
+    if (chunkType === "VP8 " && dataOffset + 10 <= bytes.length) {
+      return {
+        width: bytes.readUInt16LE(dataOffset + 6) & 0x3fff,
+        height: bytes.readUInt16LE(dataOffset + 8) & 0x3fff,
+      };
+    }
+
+    if (chunkType === "VP8L" && dataOffset + 5 <= bytes.length) {
+      const bits = bytes.readUInt32LE(dataOffset + 1);
+      return {
+        width: (bits & 0x3fff) + 1,
+        height: ((bits >> 14) & 0x3fff) + 1,
+      };
+    }
+
+    const nextChunkOffset = dataOffset + chunkSize + (chunkSize % 2);
+    if (nextChunkOffset <= chunkOffset) {
+      break;
+    }
+
+    chunkOffset = nextChunkOffset;
   }
 
   return null;
