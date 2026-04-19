@@ -4,7 +4,6 @@ import type { ReactNode } from "react";
 import { useRef, useState, useTransition } from "react";
 import { Camera, ImagePlus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { createStoryAction } from "@/app/actions/social";
 import { normalizeStoryImage, storyImageConfig } from "@/components/forms/story-image";
 
 type ProfileStoryLauncherProps = {
@@ -52,13 +51,18 @@ export function ProfileStoryLauncher({ children, className = "" }: ProfileStoryL
         formData.set("caption", "");
         formData.set("durationSec", "10");
 
-        const result = await createStoryAction({}, formData);
-        if (result.error) {
-          setError(result.error);
+        const response = await fetch("/api/stories", {
+          method: "POST",
+          body: formData,
+        });
+        const result = (await response.json()) as { error?: string; success?: string };
+
+        if (!response.ok || result.error) {
+          setError(result.error ?? "No se pudo publicar la historia.");
           setMessage("");
         } else {
           setError("");
-          setMessage("Historia subida. Ya la tienes activa.");
+          setMessage(result.success ?? "Historia subida. Ya la tienes activa.");
           router.refresh();
         }
       } catch (uploadError) {

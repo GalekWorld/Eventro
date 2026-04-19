@@ -26,8 +26,8 @@ export function AuthForm({
   return (
     <form action={formAction} className="space-y-4">
       <div className="space-y-1">
-        <h2 className="text-xl font-semibold text-slate-950">{title}</h2>
-        {description ? <p className="text-sm leading-6 text-slate-500">{description}</p> : null}
+        <h2 className="text-xl font-semibold text-slate-950 dark:text-slate-50">{title}</h2>
+        {description ? <p className="text-sm leading-6 text-slate-500 dark:text-slate-300">{description}</p> : null}
       </div>
 
       <div className="space-y-3">

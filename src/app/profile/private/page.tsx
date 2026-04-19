@@ -259,7 +259,7 @@ export default async function PrivateProfilePage({
       </section>
 
       <section className="space-y-3">
-        <details open className="app-card overflow-hidden">
+        <details className="app-card overflow-hidden">
           <summary className="cursor-pointer list-none px-5 py-4">
             <div className="flex items-center justify-between gap-3">
               <div>
@@ -289,7 +289,7 @@ export default async function PrivateProfilePage({
           </div>
         </details>
 
-        <details open className="app-card overflow-hidden">
+        <details className="app-card overflow-hidden">
           <summary className="cursor-pointer list-none px-5 py-4">
             <div className="flex items-center justify-between gap-3">
               <div>

@@ -29,6 +29,7 @@ import { parseVenueHoursFromFormData, saveVenueHours } from "@/lib/venue-hours";
 import { toggleStoryReactionForUser } from "@/lib/story-reactions";
 import { canUserAccessEventChat } from "@/features/events/event.service";
 import { clampFormValue, readFormValue } from "@/lib/form-data";
+import { createStoryForUser } from "@/lib/story-service";
 
 function getConversationPair(userIdA: string, userIdB: string) {
   return [userIdA, userIdB].sort();
@@ -422,34 +423,7 @@ export async function deletePostAction(formData: FormData) {
 export async function createStoryAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
   try {
     const currentUser = await requireAuth();
-    await assertRateLimit({
-      key: `story:create:${currentUser.id}`,
-      limit: 10,
-      windowMs: 24 * 60 * 60 * 1000,
-      message: "Has subido demasiadas historias hoy. Espera un poco.",
-      userId: currentUser.id,
-    });
-
-    const caption = clampFormValue(formData.get("caption"), 140);
-    const file = formData.get("image");
-    const durationValue = Number(readFormValue(formData.get("durationSec")) || "10");
-    const durationSec = Number.isFinite(durationValue) ? Math.min(Math.max(Math.round(durationValue), 5), 15) : 10;
-
-    if (!(file instanceof File) || file.size === 0) {
-      return { error: "Selecciona una imagen para tu historia." };
-    }
-
-    const imageUrl = await savePublicImage(file, "stories");
-
-    const story = await db.story.create({
-      data: {
-        authorId: currentUser.id,
-        imageUrl,
-        caption: caption || null,
-        durationSec,
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      },
-    });
+    const { story } = await createStoryForUser(currentUser, formData);
 
     revalidatePath("/dashboard");
     revalidatePath("/profile");

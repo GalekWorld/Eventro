@@ -170,10 +170,16 @@ export default async function TicketsPage({ searchParams }: { searchParams: Sear
                   {ticket.validatedAt ? (
                     <span className="app-pill">
                       <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
-                      Validada
+                      Usada
                     </span>
                   ) : null}
                 </div>
+                {ticket.validatedAt ? (
+                  <p className="mt-2 text-xs font-medium text-emerald-700">
+                    Entrada usada el {new Date(ticket.validatedAt).toLocaleString("es-ES")}
+                    {ticket.validatedBy ? ` por @${ticket.validatedBy.username ?? ticket.validatedBy.name ?? "local"}` : ""}
+                  </p>
+                ) : null}
                 <div className="mt-3 flex flex-wrap gap-2">
                   <span className="app-pill bg-sky-50 text-sky-700">Chat del evento disponible</span>
                 </div>

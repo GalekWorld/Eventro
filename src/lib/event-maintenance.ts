@@ -1,4 +1,3 @@
-import { db } from "@/lib/db";
 import { getEventVisibilityCutoffDate } from "@/lib/event-visibility";
 
 const EVENT_PURGE_INTERVAL_MS = 5 * 60 * 1000;
@@ -19,19 +18,5 @@ export async function purgeExpiredEvents() {
   }
 
   eventMaintenanceState.__eventroEventPurgeAt = now;
-  const cutoff = getEventVisibilityCutoffDate();
-
-  await db.event
-    .deleteMany({
-      where: {
-        OR: [
-          { endDate: { lte: cutoff } },
-          {
-            endDate: null,
-            date: { lte: cutoff },
-          },
-        ],
-      },
-    })
-    .catch(() => null);
+  void getEventVisibilityCutoffDate();
 }
