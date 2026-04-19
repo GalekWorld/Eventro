@@ -148,7 +148,7 @@ export default async function AdminVenueRequestsPage({ searchParams }: { searchP
     prisma.securityEvent.findMany({
       where: {
         type: {
-          not: "story_view",
+          notIn: ["story_view", "story_reaction", "story_highlight"],
         },
       },
       orderBy: { createdAt: "desc" },

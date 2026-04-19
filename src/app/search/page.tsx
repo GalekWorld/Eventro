@@ -7,10 +7,13 @@ import { VerifiedBadge } from "@/components/verified-badge";
 import { getVerificationTone, isPubliclyVerified } from "@/lib/user-display";
 import { getBlockedUserIds } from "@/lib/privacy";
 import { getEventPath } from "@/lib/event-path";
+import { getVisiblePublishedEventsWhere } from "@/lib/event-visibility";
+import { purgeExpiredEvents } from "@/lib/event-maintenance";
 
 type SearchParams = Promise<{ q?: string }>;
 
 export default async function SearchPage({ searchParams }: { searchParams: SearchParams }) {
+  void purgeExpiredEvents().catch(() => null);
   const params = await searchParams;
   const currentUser = await getCurrentUser();
   const query = String(params.q ?? "").trim().toLowerCase();
@@ -62,7 +65,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Searc
     }),
     db.event.findMany({
       where: {
-        published: true,
+        ...getVisiblePublishedEventsWhere(),
         ...(query
           ? {
               OR: [

@@ -25,10 +25,15 @@ import { getVenueHoursForUser } from "@/lib/venue-hours";
 import { ProfileStoryLauncher } from "@/components/profile-story-launcher";
 import { StoryCardLink } from "@/components/story-card-link";
 
-export default async function PrivateProfilePage() {
+export default async function PrivateProfilePage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ notice?: string }>;
+}) {
   void purgeTemporaryPosts().catch(() => null);
   void purgeExpiredStories().catch(() => null);
   const user = await requireAuth();
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const now = new Date();
   const isVenueProfile = user.role === "VENUE" || user.role === "VENUE_PENDING";
   const recentUsernameCutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -148,6 +153,12 @@ export default async function PrivateProfilePage() {
 
   return (
     <div className="mx-auto max-w-[935px] space-y-4">
+      {resolvedSearchParams?.notice === "story-deleted" ? (
+        <section className="app-card border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-700">
+          Has eliminado la historia.
+        </section>
+      ) : null}
+
       {!isVenueProfile ? <LiveLocationSync enabled={profile.locationSharingMode !== "GHOST"} /> : null}
 
       <section className="app-card p-5 sm:p-7">

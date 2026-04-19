@@ -146,7 +146,6 @@ export function StoryViewer({ currentStoryId, stories, canDeleteCurrent, closeHr
             {!canDeleteCurrent ? (
               <StoryReactionBar
                 storyId={currentStory.id}
-                redirectPath={`/stories/${currentStory.id}`}
                 currentUserReaction={reactionSummary?.currentUserReaction ?? null}
                 counts={reactionSummary?.counts ?? {}}
               />

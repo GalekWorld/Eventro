@@ -19,7 +19,7 @@ export async function toggleStoryReactionForUser({
   reaction: string;
 }) {
   if (!isValidReaction(reaction)) {
-    return;
+    return null;
   }
 
   const existing = await db.securityEvent.findFirst({
@@ -43,7 +43,7 @@ export async function toggleStoryReactionForUser({
         userId,
       },
     });
-    return;
+    return null;
   }
 
   await db.securityEvent.deleteMany({
@@ -62,6 +62,8 @@ export async function toggleStoryReactionForUser({
       message: reaction,
     },
   });
+
+  return reaction;
 }
 
 export async function getStoryReactionSummaries(storyIds: string[], currentUserId?: string | null) {

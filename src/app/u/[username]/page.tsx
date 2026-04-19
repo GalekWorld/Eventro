@@ -19,13 +19,17 @@ import { parseVipSpace } from "@/lib/vip-space";
 import { listHighlightedStoryIdsForUser } from "@/lib/story-metadata";
 import { ProfileStoryLauncher } from "@/components/profile-story-launcher";
 import { StoryCardLink } from "@/components/story-card-link";
+import { getEventVisibilityCutoffDate } from "@/lib/event-visibility";
+import { purgeExpiredEvents } from "@/lib/event-maintenance";
 
 export default async function PublicProfilePage({ params }: { params: Promise<{ username: string }> }) {
   void purgeTemporaryPosts().catch(() => null);
   void purgeExpiredStories().catch(() => null);
+  void purgeExpiredEvents().catch(() => null);
   const { username } = await params;
   const currentUser = await getCurrentUser();
   const now = new Date();
+  const eventVisibilityCutoff = getEventVisibilityCutoffDate(now);
 
   const profile = await db.user.findFirst({
     where: {
@@ -43,7 +47,10 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
         orderBy: { createdAt: "desc" },
       },
       events: {
-        where: { published: true },
+        where: {
+          published: true,
+          OR: [{ endDate: { gt: eventVisibilityCutoff } }, { endDate: null, date: { gt: eventVisibilityCutoff } }],
+        },
         orderBy: { date: "desc" },
         take: 6,
         include: {
@@ -71,9 +78,43 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
   });
 
   if (!profile) notFound();
-  if (currentUser && (await isBlockedBetween(currentUser.id, profile.id))) notFound();
 
-  const highlightedStoryIds = await listHighlightedStoryIdsForUser(profile.id);
+  const isOwnProfile = currentUser?.id === profile.id;
+
+  const [blockedBetween, highlightedStoryIds, isBlocked, existingConversationId] = await Promise.all([
+    currentUser ? isBlockedBetween(currentUser.id, profile.id) : Promise.resolve(false),
+    listHighlightedStoryIdsForUser(profile.id),
+    currentUser && !isOwnProfile
+      ? db.userBlock
+          .findUnique({
+            where: {
+              blockerId_blockedId: {
+                blockerId: currentUser.id,
+                blockedId: profile.id,
+              },
+            },
+          })
+          .then(Boolean)
+      : Promise.resolve(false),
+    currentUser && !isOwnProfile
+      ? db.directConversation
+          .findFirst({
+            where: {
+              OR: [
+                { userAId: currentUser.id, userBId: profile.id },
+                { userAId: profile.id, userBId: currentUser.id },
+              ],
+            },
+            select: {
+              id: true,
+            },
+          })
+          .then((conversation) => conversation?.id ?? null)
+      : Promise.resolve<string | null>(null),
+  ]);
+
+  if (blockedBetween) notFound();
+
   const highlightedStories = highlightedStoryIds.length
     ? await db.story.findMany({
         where: {
@@ -83,33 +124,8 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
       })
     : [];
 
-  const isOwnProfile = currentUser?.id === profile.id;
   const isFollowing = !isOwnProfile && Array.isArray(profile.followers) && profile.followers.length > 0;
   const isFriend = !isOwnProfile && Array.isArray(profile.following) && profile.following.length > 0 && isFollowing;
-  const isBlocked = currentUser
-    ? await db.userBlock.findUnique({
-        where: {
-          blockerId_blockedId: {
-            blockerId: currentUser.id,
-            blockedId: profile.id,
-          },
-        },
-      }).then(Boolean)
-    : false;
-  const existingConversationId =
-    currentUser && !isOwnProfile
-      ? await db.directConversation.findFirst({
-          where: {
-            OR: [
-              { userAId: currentUser.id, userBId: profile.id },
-              { userAId: profile.id, userBId: currentUser.id },
-            ],
-          },
-          select: {
-            id: true,
-          },
-        }).then((conversation) => conversation?.id ?? null)
-      : null;
 
   return (
     <div className="mx-auto max-w-[935px] space-y-4">

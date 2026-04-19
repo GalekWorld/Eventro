@@ -9,7 +9,6 @@ import { VerifiedBadge } from "@/components/verified-badge";
 import { getVerificationTone, isPubliclyVerified } from "@/lib/user-display";
 import { PostActions } from "@/components/post-actions";
 import { CommentActions } from "@/components/comment-actions";
-import { AutoRefresh } from "@/components/auto-refresh";
 import { getBlockedUserIds } from "@/lib/privacy";
 import { getMutualFriendIds } from "@/lib/social-graph";
 import { getEventPath } from "@/lib/event-path";
@@ -20,6 +19,8 @@ import { purgeTemporaryPosts } from "@/lib/post-maintenance";
 import { PostLikeButton } from "@/components/post-like-button";
 import { DashboardFeedFilters } from "@/components/dashboard-feed-filters";
 import { StoryCardLink } from "@/components/story-card-link";
+import { getVisiblePublishedEventsWhere } from "@/lib/event-visibility";
+import { purgeExpiredEvents } from "@/lib/event-maintenance";
 
 type SearchParams = Promise<{ tab?: string; city?: string; page?: string }>;
 
@@ -33,6 +34,7 @@ function parsePage(value?: string) {
 export default async function DashboardPage({ searchParams }: { searchParams: SearchParams }) {
   void purgeTemporaryPosts().catch(() => null);
   void purgeExpiredStories().catch(() => null);
+  void purgeExpiredEvents().catch(() => null);
 
   const params = await searchParams;
   const user = await getCurrentUser();
@@ -72,7 +74,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
   const [candidateEvents, featuredAuditLogs, posts, postCount, stories, suggestedUsers, friendUsers, groups] = await Promise.all([
     db.event.findMany({
       where: {
-        published: true,
+        ...getVisiblePublishedEventsWhere(now),
         ...(cityFilter
           ? {
               city: {
@@ -279,8 +281,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
 
   return (
     <div className="mx-auto grid w-full max-w-[1180px] items-start gap-3 sm:gap-4 xl:grid-cols-[minmax(0,680px)_minmax(260px,300px)] xl:justify-center xl:gap-5">
-      <AutoRefresh intervalMs={15000} />
-
       <section className="min-w-0 space-y-3">
         <section className="app-card p-2.5 sm:p-4">
           <DashboardFeedFilters activeTab={activeTab} cityFilter={cityFilter} />

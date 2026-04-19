@@ -67,7 +67,7 @@ export function DashboardFeedFilters({
         </button>
       </div>
 
-      <div className="grid w-full gap-2 sm:grid-cols-[minmax(0,1fr)_auto] lg:w-[300px]">
+      <div className="grid w-full gap-2 lg:w-[300px]">
         <CitySelect
           name="city"
           defaultValue={selectedCity}
@@ -80,9 +80,7 @@ export function DashboardFeedFilters({
           className="app-input h-10 min-w-0"
           emptyLabel="Todas las ciudades"
         />
-        <button type="button" className="app-button-secondary w-full sm:w-auto" disabled={isPending} onClick={() => updateUrl(activeTab, selectedCity)}>
-          {isPending ? "Filtrando..." : "Filtrar"}
-        </button>
+        <p className="text-xs text-slate-500">{isPending ? "Actualizando resultados..." : "El filtro se aplica al instante."}</p>
       </div>
     </div>
   );

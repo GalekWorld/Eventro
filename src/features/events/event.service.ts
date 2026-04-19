@@ -1,6 +1,7 @@
 import { randomBytes } from "crypto";
 import { NotificationType, PaymentCheckoutStatus, PaymentProvider, Prisma, TicketAccessAction, UserRole } from "@prisma/client";
 import { db } from "@/lib/db";
+import { getVisiblePublishedEventsWhere } from "@/lib/event-visibility";
 import { slugify } from "@/lib/slug";
 import { DEFAULT_PAYMENT_CURRENCY, calculateCheckoutAmounts } from "@/lib/payments";
 import type { CreateEventInput, EventFilters, UpdateEventBasicsInput } from "@/features/events/event.schemas";
@@ -191,9 +192,7 @@ export function isTicketTypeOnSale(ticketType: {
 }
 
 export async function listPublishedEvents(filters: EventFilters) {
-  const where: Prisma.EventWhereInput = {
-    published: true,
-  };
+  const where: Prisma.EventWhereInput = getVisiblePublishedEventsWhere();
 
   if (filters.city) {
     where.city = { contains: filters.city, mode: "insensitive" };
@@ -242,7 +241,7 @@ export async function listPublishedEvents(filters: EventFilters) {
 export async function getPublishedEventBySlug(slug: string) {
   return db.event.findFirst({
     where: {
-      published: true,
+      ...getVisiblePublishedEventsWhere(),
       OR: [{ slug }, { id: slug }],
     },
     include: {
@@ -284,7 +283,7 @@ export async function getEventChatBySlugForUser({
 }) {
   const event = await db.event.findFirst({
     where: {
-      published: true,
+      ...getVisiblePublishedEventsWhere(),
       OR: [{ slug }, { id: slug }],
     },
     include: {

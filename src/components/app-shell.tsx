@@ -48,7 +48,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
     user = null;
   }
 
-  const profileHref = user ? "/profile/private" : "/login";
+  const profileHref = user ? (user.username ? `/u/${user.username}` : "/profile/private") : "/login";
   const nav = [...desktopBaseNav, { href: profileHref, label: "Perfil", icon: User }];
   const canScan =
     user &&

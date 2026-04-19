@@ -451,22 +451,6 @@ export async function createStoryAction(_prevState: ActionState, formData: FormD
       },
     });
 
-    await db.notification.createMany({
-      data: await db.follow.findMany({
-        where: { followingId: currentUser.id },
-        select: { followerId: true },
-      }).then((followers) =>
-        followers.map((follow) => ({
-          recipientId: follow.followerId,
-          actorId: currentUser.id,
-          type: NotificationType.STORY_PUBLISHED,
-          title: "Nueva historia",
-          body: `@${currentUser.username ?? "usuario"} ha subido una historia.`,
-          link: `/stories/${story.id}`,
-        })),
-      ),
-    }).catch(() => null);
-
     revalidatePath("/dashboard");
     revalidatePath("/profile");
     revalidatePath(`/stories/${story.id}`);
@@ -480,11 +464,11 @@ export async function createStoryAction(_prevState: ActionState, formData: FormD
   }
 }
 
-export async function deleteStoryAction(formData: FormData) {
+export async function deleteStoryAction(formData: FormData): Promise<ActionState> {
   const currentUser = await requireAuth();
   const storyId = readFormValue(formData.get("storyId"));
 
-  if (!storyId) return;
+  if (!storyId) return { error: "No se ha encontrado la historia." };
 
   const story = await db.story.findUnique({
     where: { id: storyId },
@@ -495,7 +479,7 @@ export async function deleteStoryAction(formData: FormData) {
   });
 
   if (!story || story.authorId !== currentUser.id) {
-    return;
+    return { error: "No puedes eliminar esta historia." };
   }
 
   await db.story.delete({
@@ -510,14 +494,14 @@ export async function deleteStoryAction(formData: FormData) {
     revalidatePath(`/u/${currentUser.username}`);
   }
   publishUserRefresh([currentUser.id], "story:delete", storyId);
-  redirect("/profile/private");
+  return { success: "Has eliminado la historia." };
 }
 
-export async function toggleStoryHighlightAction(formData: FormData) {
+export async function toggleStoryHighlightAction(formData: FormData): Promise<ActionState> {
   const currentUser = await requireAuth();
   const storyId = readFormValue(formData.get("storyId"));
 
-  if (!storyId) return;
+  if (!storyId) return { error: "No se ha encontrado la historia." };
 
   const story = await db.story.findUnique({
     where: { id: storyId },
@@ -528,7 +512,7 @@ export async function toggleStoryHighlightAction(formData: FormData) {
   });
 
   if (!story || story.authorId !== currentUser.id) {
-    return;
+    return { error: "No puedes gestionar esta historia." };
   }
 
   const highlightedIds = await listHighlightedStoryIdsForUser(currentUser.id);
@@ -551,6 +535,7 @@ export async function toggleStoryHighlightAction(formData: FormData) {
   }
   revalidatePath(`/stories/${storyId}`);
   publishUserRefresh([currentUser.id], "story:highlight", storyId);
+  return { success: isHighlighted ? "Has quitado la historia destacada." : "Has destacado la historia." };
 }
 
 export async function createGroupAction(_prevState: ActionState, formData: FormData): Promise<ActionState> {
@@ -731,14 +716,13 @@ export async function updateProfileAction(_prevState: ActionState, formData: For
   }
 }
 
-export async function toggleStoryReactionAction(formData: FormData) {
+export async function toggleStoryReactionAction(formData: FormData): Promise<ActionState> {
   const currentUser = await requireAuth();
   const storyId = readFormValue(formData.get("storyId"));
   const reaction = readFormValue(formData.get("reaction"));
-  const redirectPath = toSafeInternalPath(readFormValue(formData.get("redirectPath")), `/stories/${storyId}`);
 
   if (!storyId || !reaction) {
-    return;
+    return { error: "No se ha podido reaccionar a la historia." };
   }
 
   const story = await db.story.findUnique({
@@ -750,22 +734,23 @@ export async function toggleStoryReactionAction(formData: FormData) {
   });
 
   if (!story || story.authorId === currentUser.id) {
-    return;
+    return { error: "No se ha podido reaccionar a la historia." };
   }
 
-  await toggleStoryReactionForUser({
+  const currentUserReaction = await toggleStoryReactionForUser({
     storyId,
     userId: currentUser.id,
     reaction,
   });
 
   revalidatePath(`/stories/${storyId}`);
-  revalidatePath("/dashboard");
-  if (story.authorId === currentUser.id) {
-    revalidatePath("/profile/private");
-  }
   publishUserRefresh([currentUser.id, story.authorId], "story:reaction", storyId);
-  safeRevalidatePath(redirectPath, `/stories/${storyId}`);
+  return {
+    success: currentUserReaction ? "Reaccion enviada." : "Reaccion eliminada.",
+    data: {
+      currentUserReaction: currentUserReaction ?? null,
+    },
+  };
 }
 
 export async function toggleGroupMembershipAction(formData: FormData) {

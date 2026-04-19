@@ -1,5 +1,5 @@
-import { ScreenLoading } from "@/components/screen-loading";
+import { RouteLoadingScreen } from "@/components/route-loading-screen";
 
 export default function DashboardLoading() {
-  return <ScreenLoading title="Cargando inicio" blocks={4} />;
+  return <RouteLoadingScreen title="Abriendo inicio" description="Estamos preparando publicaciones, historias y filtros." />;
 }
