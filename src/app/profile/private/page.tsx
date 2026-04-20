@@ -24,6 +24,9 @@ import { getStoryViewSummaries, listHighlightedStoryIdsForUser } from "@/lib/sto
 import { getVenueHoursForUser } from "@/lib/venue-hours";
 import { ProfileStoryLauncher } from "@/components/profile-story-launcher";
 import { StoryCardLink } from "@/components/story-card-link";
+import { measureQuery } from "@/lib/query-timing";
+import { getEventVisibilityCutoffDate } from "@/lib/event-visibility";
+import type { Prisma } from "@prisma/client";
 
 export default async function PrivateProfilePage({
   searchParams,
@@ -35,6 +38,7 @@ export default async function PrivateProfilePage({
   const user = await requireAuth();
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const now = new Date();
+  const eventVisibilityCutoff = getEventVisibilityCutoffDate(now);
   const isVenueProfile = user.role === "VENUE" || user.role === "VENUE_PENDING";
   const recentUsernameCutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const [blockedUserIds, canScan, usernameChangesUsed] = await Promise.all([
@@ -56,42 +60,108 @@ export default async function PrivateProfilePage({
       },
     }),
   ]);
+  const followersWhere: Prisma.FollowWhereInput = blockedUserIds.length
+    ? { followingId: user.id, followerId: { notIn: blockedUserIds } }
+    : { followingId: user.id };
 
-  const profile = await db.user.findUnique({
-    where: { id: user.id },
-    include: {
-      posts: {
-        where: { showOnProfile: true },
-        orderBy: { createdAt: "desc" },
+  const profile = await measureQuery("private-profile:base", () =>
+    db.user.findUnique({
+      where: { id: user.id },
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        bio: true,
+        city: true,
+        latitude: true,
+        longitude: true,
+        shareLocation: true,
+        locationSharingMode: true,
+        avatarUrl: true,
+        isVerified: true,
+        role: true,
+        venueRequest: true,
+        _count: {
+          select: {
+            followers: true,
+            following: true,
+            posts: { where: { showOnProfile: true } },
+            events: true,
+          },
+        },
       },
-      stories: {
+    }),
+  );
+
+  if (!profile) return null;
+
+  const [posts, stories, events, followers, highlightedStoryIds, venueHours] = await Promise.all([
+    measureQuery("private-profile:posts", () =>
+      db.post.findMany({
         where: {
+          authorId: user.id,
+          showOnProfile: true,
+        },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          content: true,
+          imageUrl: true,
+        },
+      }),
+    ),
+    measureQuery("private-profile:stories", () =>
+      db.story.findMany({
+        where: {
+          authorId: user.id,
           expiresAt: {
             gt: now,
           },
         },
         orderBy: { createdAt: "desc" },
-      },
-      events: {
-        where: { published: true },
-        orderBy: { date: "desc" },
-        take: 6,
-        include: {
-          ticketTypes: {
-            orderBy: { sortOrder: "asc" },
-            select: {
-              name: true,
-              description: true,
-              price: true,
-              isVisible: true,
-            },
-          },
+        select: {
+          id: true,
+          imageUrl: true,
+          caption: true,
         },
-      },
-      followers: {
+      }),
+    ),
+    isVenueProfile
+      ? measureQuery("private-profile:events", () =>
+          db.event.findMany({
+            where: {
+              ownerId: user.id,
+              published: true,
+              OR: [{ endDate: { gt: eventVisibilityCutoff } }, { endDate: null, date: { gt: eventVisibilityCutoff } }],
+            },
+            orderBy: { date: "desc" },
+            take: 6,
+            select: {
+              id: true,
+              slug: true,
+              title: true,
+              reservationInfo: true,
+              date: true,
+              city: true,
+              price: true,
+              ticketTypes: {
+                orderBy: { sortOrder: "asc" },
+                select: {
+                  name: true,
+                  description: true,
+                  price: true,
+                  isVisible: true,
+                },
+              },
+            },
+          }),
+        )
+      : Promise.resolve([]),
+    measureQuery("private-profile:followers", () =>
+      db.follow.findMany({
         take: 12,
         orderBy: { createdAt: "desc" },
-        ...(blockedUserIds.length ? { where: { followerId: { notIn: blockedUserIds } } } : {}),
+        where: followersWhere,
         include: {
           follower: {
             select: {
@@ -104,33 +174,26 @@ export default async function PrivateProfilePage({
             },
           },
         },
-      },
-      _count: {
-        select: {
-          followers: true,
-          following: true,
-          posts: { where: { showOnProfile: true } },
-          events: true,
-        },
-      },
-      venueRequest: true,
-    },
-  });
-
-  if (!profile) return null;
-
-  const [highlightedStoryIds, venueHours, storyViewSummaries] = await Promise.all([
+      }),
+    ),
     listHighlightedStoryIdsForUser(user.id),
     isVenueProfile ? getVenueHoursForUser(user.id) : Promise.resolve([]),
-    getStoryViewSummaries(profile.stories.map((story) => story.id)),
   ]);
+  const storyViewSummaries = await measureQuery("private-profile:story-view-summaries", () => getStoryViewSummaries(stories.map((story) => story.id)));
   const highlightedStories = highlightedStoryIds.length
-    ? await db.story.findMany({
-        where: {
-          id: { in: highlightedStoryIds },
-        },
-        orderBy: { createdAt: "desc" },
-      })
+    ? await measureQuery("private-profile:highlighted-stories", () =>
+        db.story.findMany({
+          where: {
+            id: { in: highlightedStoryIds },
+          },
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            imageUrl: true,
+            caption: true,
+          },
+        }),
+      )
     : [];
 
   const emailConfigured = isEmailDeliveryConfigured();
@@ -309,12 +372,12 @@ export default async function PrivateProfilePage({
                   <h2 className="text-base font-semibold text-slate-950">Tus historias activas</h2>
                   <p className="mt-1 text-sm text-slate-500">Puedes borrarlas en cualquier momento.</p>
                 </div>
-                <span className="app-pill">{profile.stories.length}</span>
+                <span className="app-pill">{stories.length}</span>
               </div>
 
-              {profile.stories.length > 0 ? (
+              {stories.length > 0 ? (
                 <div className="mt-4 flex gap-4 overflow-x-auto pb-1">
-                  {profile.stories.map((story) => {
+                  {stories.map((story) => {
                     const views = storyViewSummaries.get(story.id) ?? { count: 0, viewers: [] };
 
                     return (
@@ -397,7 +460,7 @@ export default async function PrivateProfilePage({
         </details>
       </section>
 
-      {profile.followers.length > 0 ? (
+      {followers.length > 0 ? (
         <section className="app-card p-5">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-slate-950">Seguidores recientes</h2>
@@ -406,7 +469,7 @@ export default async function PrivateProfilePage({
             </Link>
           </div>
           <div className="mt-4 grid gap-3">
-            {profile.followers.map(({ follower }) => (
+            {followers.map(({ follower }) => (
               <Link
                 key={follower.id}
                 href={`/u/${follower.username ?? ""}`}
@@ -426,18 +489,18 @@ export default async function PrivateProfilePage({
         </section>
       ) : null}
 
-      {isVenueProfile && profile.events.length > 0 ? (
+      {isVenueProfile && events.length > 0 ? (
         <section className="app-card p-5">
           <div className="flex items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold text-slate-950">Anuncios del local</h2>
               <p className="mt-1 text-sm text-slate-500">Estos eventos publicados también se muestran en tu perfil público.</p>
             </div>
-            <span className="app-pill">{profile.events.length}</span>
+            <span className="app-pill">{events.length}</span>
           </div>
 
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {profile.events.map((event) => (
+            {events.map((event) => (
               <Link key={event.id} href={getEventPath(event)} className="rounded-3xl border border-neutral-200 bg-neutral-50 p-4 transition hover:bg-neutral-100">
                 {(() => {
                   const pricing = getPrimaryTicketSummary(event);
@@ -468,7 +531,7 @@ export default async function PrivateProfilePage({
         </div>
 
         <div className="grid grid-cols-3 gap-1 sm:gap-3">
-          {profile.posts.map((post) => {
+          {posts.map((post) => {
             const parsedPost = parsePostContent(post.content);
 
             return (
@@ -486,7 +549,7 @@ export default async function PrivateProfilePage({
             );
           })}
 
-          {profile.posts.length === 0 ? (
+          {posts.length === 0 ? (
             <div className="col-span-3 app-card p-5 text-center text-sm text-slate-500">Aún no has publicado nada.</div>
           ) : null}
         </div>

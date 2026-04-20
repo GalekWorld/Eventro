@@ -17,9 +17,9 @@ import {
 import { getSessionUser } from "@/lib/auth";
 import { LogoutButton } from "@/components/logout-button";
 import { MobileNav } from "@/components/mobile-nav";
-import { db } from "@/lib/db";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ClientShellEffects } from "@/components/client-shell-effects";
+import { getCanScanForUser, getDefaultAppPathForRole } from "@/lib/auth";
 
 const desktopBaseNav = [
   { href: "/dashboard", label: "Inicio", icon: Compass },
@@ -48,15 +48,10 @@ export async function AppShell({ children }: { children: ReactNode }) {
     user = null;
   }
 
+  const homeHref = getDefaultAppPathForRole(user?.role);
   const profileHref = user ? (user.username ? `/u/${user.username}` : "/profile/private") : "/login";
   const nav = [...desktopBaseNav, { href: profileHref, label: "Perfil", icon: User }];
-  const canScan =
-    user &&
-    (user.role === "ADMIN" ||
-      (await db.venueDoorStaff.findFirst({
-        where: { staffUserId: user.id },
-        select: { id: true },
-      }).then(Boolean)));
+  const canScan = await getCanScanForUser(user?.id, user?.role);
 
   if (user?.role === "ADMIN") {
     nav.push({ href: "/admin/venue-requests", label: "Admin", icon: ShieldCheck });
@@ -73,12 +68,12 @@ export async function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-app-shell text-slate-900">
-      <ClientShellEffects userId={user?.id} withServiceWorker={false} />
+      <ClientShellEffects userId={user?.id} profileHref={user ? profileHref : null} withServiceWorker={false} />
       <div className="mx-auto flex min-h-screen w-full max-w-[1180px] gap-4 px-0 sm:px-4 sm:py-4 xl:gap-6">
         <aside className="sticky top-4 hidden h-[calc(100vh-2rem)] w-72 shrink-0 flex-col justify-between self-start rounded-[28px] border border-neutral-200 bg-white p-5 shadow-[0_10px_35px_rgba(15,23,42,0.06)] xl:flex">
           <div className="space-y-6">
             <div className="border-b border-neutral-200 pb-5">
-              <Link href="/dashboard" className="font-['Pacifico'] text-3xl text-slate-950">
+              <Link href={homeHref} className="font-['Pacifico'] text-3xl text-slate-950">
                 Eventro
               </Link>
             </div>
@@ -112,7 +107,7 @@ export async function AppShell({ children }: { children: ReactNode }) {
         <div className="app-safe-bottom app-safe-top flex min-w-0 flex-1 flex-col gap-0">
           <header className="sticky top-0 z-20 border-b border-neutral-200 bg-white/92 px-3 py-3 backdrop-blur sm:rounded-t-[28px] sm:border sm:px-4 xl:mt-4 xl:rounded-[28px] xl:px-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <Link href="/dashboard" className="font-['Pacifico'] text-[30px] leading-none text-slate-950 xl:hidden">
+              <Link href={homeHref} className="font-['Pacifico'] text-[30px] leading-none text-slate-950 xl:hidden">
                 Eventro
               </Link>
 

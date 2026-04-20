@@ -248,6 +248,8 @@ model Event {
 
   @@index([published, date])
   @@index([published, city, date])
+  @@index([ownerId, published, date])
+  @@index([published, endDate, date])
 }
 
 model EventTicketType {
@@ -408,6 +410,7 @@ model EventTicket {
   accessLogs       EventTicketAccessLog[]
 
   @@index([buyerId, createdAt])
+  @@index([buyerId, status, createdAt])
   @@index([eventId, createdAt])
   @@index([qrCode])
 }
@@ -478,6 +481,8 @@ model Post {
 
   @@index([authorId, createdAt])
   @@index([hiddenAt, createdAt])
+  @@index([authorId, showOnProfile, createdAt])
+  @@index([hiddenAt, authorId, createdAt])
 }
 
 model PostLike {
@@ -509,6 +514,7 @@ model PostComment {
 
   @@index([postId, createdAt])
   @@index([authorId, createdAt])
+  @@index([postId, hiddenAt, createdAt])
 }
 
 model CommentLike {
@@ -537,6 +543,7 @@ model Story {
 
   @@index([authorId, expiresAt])
   @@index([expiresAt, createdAt])
+  @@index([authorId, createdAt])
 }
 
 model Follow {
@@ -549,6 +556,7 @@ model Follow {
   following    User     @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
 
   @@unique([followerId, followingId])
+  @@index([followerId, createdAt])
   @@index([followingId, createdAt])
 }
 
@@ -737,6 +745,7 @@ model AdminAuditLog {
 
   @@index([adminId, createdAt])
   @@index([targetType, targetId])
+  @@index([action, targetType, createdAt])
 }
 
 model RateLimitBucket {
@@ -762,6 +771,7 @@ model SecurityEvent {
   @@index([type, createdAt])
   @@index([level, createdAt])
   @@index([userId, createdAt])
+  @@index([type, userId, createdAt])
 }
 
 model PasswordResetToken {

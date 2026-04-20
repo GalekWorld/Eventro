@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, getDefaultAppPathForRole } from "@/lib/auth";
 
 export default async function HomePage() {
   const user = await getCurrentUser();
@@ -8,13 +8,5 @@ export default async function HomePage() {
     redirect("/login");
   }
 
-  if (user.role === "VENUE") {
-    redirect("/local/dashboard");
-  }
-
-  if (user.role === "VENUE_PENDING") {
-    redirect("/venue/pending");
-  }
-
-  redirect("/dashboard");
+  redirect(getDefaultAppPathForRole(user.role));
 }

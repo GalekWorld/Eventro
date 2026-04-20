@@ -3,9 +3,7 @@
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
-const CORE_ROUTES = ["/dashboard", "/search", "/map", "/messages", "/profile", "/notifications", "/events"];
-
-export function RoutePrefetch() {
+export function RoutePrefetch({ profileHref }: { profileHref?: string | null }) {
   const router = useRouter();
   const pathname = usePathname();
 
@@ -17,10 +15,10 @@ export function RoutePrefetch() {
     let cancelled = false;
     let idleHandle: number | null = null;
     let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
+    const coreRoutes = ["/dashboard", "/search", "/map", "/messages", "/notifications", "/events"];
+    const targets = [...coreRoutes, ...(profileHref ? [profileHref] : [])].filter((route, index, routes) => route !== pathname && routes.indexOf(route) === index);
 
     const queuePrefetch = () => {
-      const targets = CORE_ROUTES.filter((route) => route !== pathname);
-
       targets.forEach((route, index) => {
         setTimeout(() => {
           if (!cancelled) {
@@ -66,7 +64,7 @@ export function RoutePrefetch() {
       document.removeEventListener("visibilitychange", handleVisible);
       window.removeEventListener("online", handleVisible);
     };
-  }, [pathname, router]);
+  }, [pathname, profileHref, router]);
 
   return null;
 }

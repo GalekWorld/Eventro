@@ -15,14 +15,16 @@ const BrowserNotificationListener = dynamic(
 
 export function ClientShellEffects({
   userId,
+  profileHref,
   withServiceWorker = true,
 }: {
   userId?: string | null;
+  profileHref?: string | null;
   withServiceWorker?: boolean;
 }) {
   return (
     <>
-      <RoutePrefetch />
+      <RoutePrefetch profileHref={profileHref} />
       {withServiceWorker ? <ServiceWorkerRegister /> : null}
       {userId ? <BrowserNotificationListener userId={userId} /> : null}
     </>

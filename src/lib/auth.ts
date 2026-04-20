@@ -72,6 +72,35 @@ export async function getSessionUser() {
   return getCurrentUser();
 }
 
+export function getDefaultAppPathForRole(role?: UserRole | null) {
+  if (role === "VENUE") {
+    return "/local/dashboard";
+  }
+
+  if (role === "VENUE_PENDING") {
+    return "/venue/pending";
+  }
+
+  return "/dashboard";
+}
+
+export const getCanScanForUser = cache(async (userId?: string | null, role?: UserRole | null) => {
+  if (!userId) {
+    return false;
+  }
+
+  if (role === "ADMIN") {
+    return true;
+  }
+
+  const assignment = await prisma.venueDoorStaff.findFirst({
+    where: { staffUserId: userId },
+    select: { id: true },
+  });
+
+  return Boolean(assignment);
+});
+
 export async function requireUser() {
   const sessionToken = await getSessionToken();
   const user = await getCurrentUser();

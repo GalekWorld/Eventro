@@ -21,6 +21,7 @@ import { DashboardFeedFilters } from "@/components/dashboard-feed-filters";
 import { StoryCardLink } from "@/components/story-card-link";
 import { getVisiblePublishedEventsWhere } from "@/lib/event-visibility";
 import { purgeExpiredEvents } from "@/lib/event-maintenance";
+import { measureQuery } from "@/lib/query-timing";
 
 type SearchParams = Promise<{ tab?: string; city?: string; page?: string }>;
 
@@ -71,7 +72,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
       : {}),
   };
 
-  const [candidateEvents, featuredAuditLogs, posts, postCount, stories, suggestedUsers, friendUsers, groups] = await Promise.all([
+  const candidateEvents = await measureQuery("dashboard:candidate-events", () =>
     db.event.findMany({
       where: {
         ...getVisiblePublishedEventsWhere(now),
@@ -99,139 +100,161 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
         },
       },
     }),
-    db.adminAuditLog.findMany({
-      where: {
-        action: {
-          in: ["feature_event", "unfeature_event"],
-        },
-        targetType: "event",
-      },
-      orderBy: { createdAt: "desc" },
-      take: 200,
-      select: {
-        action: true,
-        targetId: true,
-      },
-    }),
-    db.post.findMany({
-      where: postWhere,
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      skip: (page - 1) * POSTS_PER_PAGE,
-      take: POSTS_PER_PAGE,
-      include: {
-        author: {
-          select: {
-            id: true,
-            username: true,
-            name: true,
-            city: true,
-            isVerified: true,
-            role: true,
-            avatarUrl: true,
-          },
-        },
-        likes: user ? { where: { userId: user.id }, select: { id: true } } : false,
-        comments: {
-          where: {
-            hiddenAt: null,
-            authorId: { notIn: blockedUserIds },
-          },
-          orderBy: { createdAt: "asc" },
-          take: 6,
+  );
+
+  const [featuredAuditLogs, postData, stories, suggestedUsers, friendUsers, groups] = await Promise.all([
+    candidateEvents.length > 0
+      ? measureQuery("dashboard:featured-logs", () =>
+          db.adminAuditLog.findMany({
+            where: {
+              action: {
+                in: ["feature_event", "unfeature_event"],
+              },
+              targetType: "event",
+              targetId: { in: candidateEvents.map((event) => event.id) },
+            },
+            orderBy: { createdAt: "desc" },
+            take: candidateEvents.length * 3,
+            select: {
+              action: true,
+              targetId: true,
+            },
+          }),
+        )
+      : Promise.resolve([]),
+    measureQuery("dashboard:posts-and-count", () =>
+      db.$transaction([
+        db.post.findMany({
+          where: postWhere,
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          skip: (page - 1) * POSTS_PER_PAGE,
+          take: POSTS_PER_PAGE,
           include: {
             author: {
               select: {
                 id: true,
                 username: true,
                 name: true,
-                avatarUrl: true,
+                city: true,
                 isVerified: true,
                 role: true,
+                avatarUrl: true,
               },
             },
             likes: user ? { where: { userId: user.id }, select: { id: true } } : false,
-            _count: {
-              select: { likes: true },
-            },
-          },
-        },
-        _count: {
-          select: {
-            likes: true,
             comments: {
-              where: { hiddenAt: null },
-            },
-          },
-        },
-      },
-    }),
-    db.post.count({ where: postWhere }),
-    db.story.findMany({
-      where: {
-        expiresAt: { gt: now },
-        authorId: { notIn: blockedUserIds },
-        ...(activeTab === "friends" && user
-          ? {
-              authorId: {
-                in: friendIds.length > 0 ? friendIds : ["__no_friends__"],
+              where: {
+                hiddenAt: null,
+                authorId: { notIn: blockedUserIds },
               },
-            }
-          : {}),
-      },
-      orderBy: { createdAt: "desc" },
-      take: 12,
-      include: {
-        author: {
-          select: {
-            id: true,
-            username: true,
-            isVerified: true,
-            role: true,
-          },
-        },
-      },
-    }),
-    db.user.findMany({
-      where: {
-        username: { not: null },
-        id: { notIn: [...blockedUserIds, ...(user ? [user.id] : [])] },
-      },
-      take: 6,
-      select: {
-        id: true,
-        username: true,
-        name: true,
-        city: true,
-        isVerified: true,
-        role: true,
-        avatarUrl: true,
-      },
-    }),
-    friendIds.length > 0
-      ? db.user.findMany({
-          where: {
-            id: {
-              in: friendIds,
+              orderBy: { createdAt: "asc" },
+              take: 6,
+              include: {
+                author: {
+                  select: {
+                    id: true,
+                    username: true,
+                    name: true,
+                    avatarUrl: true,
+                    isVerified: true,
+                    role: true,
+                  },
+                },
+                likes: user ? { where: { userId: user.id }, select: { id: true } } : false,
+                _count: {
+                  select: { likes: true },
+                },
+              },
+            },
+            _count: {
+              select: {
+                likes: true,
+                comments: {
+                  where: { hiddenAt: null },
+                },
+              },
             },
           },
-          take: 4,
-          select: {
-            id: true,
-            username: true,
-            name: true,
-          },
-        })
-      : Promise.resolve([]),
-    db.group.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 3,
-      include: {
-        _count: {
-          select: { memberships: true, messages: { where: { hiddenAt: null } } },
+        }),
+        db.post.count({ where: postWhere }),
+      ]),
+    ),
+    measureQuery("dashboard:stories", () =>
+      db.story.findMany({
+        where: {
+          expiresAt: { gt: now },
+          authorId: { notIn: blockedUserIds },
+          ...(activeTab === "friends" && user
+            ? {
+                authorId: {
+                  in: friendIds.length > 0 ? friendIds : ["__no_friends__"],
+                },
+              }
+            : {}),
         },
-      },
-    }),
+        orderBy: { createdAt: "desc" },
+        take: 12,
+        include: {
+          author: {
+            select: {
+              id: true,
+              username: true,
+              isVerified: true,
+              role: true,
+            },
+          },
+        },
+      }),
+    ),
+    measureQuery("dashboard:suggested-users", () =>
+      db.user.findMany({
+        where: {
+          username: { not: null },
+          id: { notIn: [...blockedUserIds, ...(user ? [user.id] : [])] },
+        },
+        take: 6,
+        select: {
+          id: true,
+          username: true,
+          name: true,
+          city: true,
+          isVerified: true,
+          role: true,
+          avatarUrl: true,
+        },
+      }),
+    ),
+    friendIds.length > 0
+      ? measureQuery("dashboard:friend-users", () =>
+          db.user.findMany({
+            where: {
+              id: {
+                in: friendIds,
+              },
+            },
+            take: 4,
+            select: {
+              id: true,
+              username: true,
+              name: true,
+            },
+          }),
+        )
+      : Promise.resolve([]),
+    measureQuery("dashboard:groups", () =>
+      db.group.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 3,
+        include: {
+          _count: {
+            select: { memberships: true, messages: { where: { hiddenAt: null } } },
+          },
+        },
+      }),
+    ),
   ]);
+
+  const [posts, postCount] = postData;
 
   const featuredState = new Map<string, boolean>();
   for (const log of featuredAuditLogs) {
@@ -291,7 +314,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
           </p>
         </section>
 
-        <section className="app-card overflow-x-auto p-2.5 sm:p-3">
+        {user ? (
+          <section className="app-card overflow-x-auto p-2.5 sm:p-3">
           <div className="flex gap-2">
             {shortcuts.map((shortcut) => {
               const Icon = shortcut.icon;
@@ -308,7 +332,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
               );
             })}
           </div>
-        </section>
+          </section>
+        ) : null}
 
         <section className="app-card overflow-x-auto p-2.5 sm:p-3">
           <div className="flex gap-3">

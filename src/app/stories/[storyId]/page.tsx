@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { getBlockedUserIds } from "@/lib/privacy";
@@ -19,6 +19,10 @@ export default async function StoryPage({
   const { storyId } = await params;
   const routeSearchParams = await searchParams;
   const currentUser = await getCurrentUser();
+
+  if (!currentUser) {
+    redirect(`/login?next=${encodeURIComponent(`/stories/${storyId}`)}`);
+  }
 
   const visibleStories = await db.story.findMany({
     where: {
@@ -42,24 +46,18 @@ export default async function StoryPage({
     },
   });
 
-  let stories = visibleStories;
-
-  if (currentUser) {
-    const blockedUserIds = new Set(await getBlockedUserIds(currentUser.id));
-    stories = visibleStories.filter((item) => !blockedUserIds.has(item.author.id));
-  }
+  const blockedUserIds = new Set(await getBlockedUserIds(currentUser.id));
+  const stories = visibleStories.filter((item) => !blockedUserIds.has(item.author.id));
 
   const story = stories.find((item) => item.id === storyId);
 
   if (!story) notFound();
 
-  if (currentUser) {
-    void registerStoryView({
-      storyId: story.id,
-      viewerId: currentUser.id,
-      ownerId: story.author.id,
-    }).catch(() => null);
-  }
+  void registerStoryView({
+    storyId: story.id,
+    viewerId: currentUser.id,
+    ownerId: story.author.id,
+  }).catch(() => null);
 
   const selectedAuthorId = story.author.id;
   const selectedAuthorStories = stories
@@ -74,10 +72,10 @@ export default async function StoryPage({
   );
 
   const orderedStories = [...selectedAuthorStories, ...remainingStories];
-  const highlightedIds = currentUser?.id === story.author.id ? await listHighlightedStoryIdsForUser(currentUser.id) : [];
+  const highlightedIds = currentUser.id === story.author.id ? await listHighlightedStoryIdsForUser(currentUser.id) : [];
   const isHighlighted = highlightedIds.includes(story.id);
-  const viewSummaries = currentUser?.id === story.author.id ? await getStoryViewSummaries([story.id]) : new Map();
-  const reactionSummaries = await getStoryReactionSummaries(orderedStories.map((item) => item.id), currentUser?.id);
+  const viewSummaries = currentUser.id === story.author.id ? await getStoryViewSummaries([story.id]) : new Map();
+  const reactionSummaries = await getStoryReactionSummaries(orderedStories.map((item) => item.id), currentUser.id);
   const currentStoryViews = viewSummaries.get(story.id) ?? { count: 0, viewers: [] };
 
   const closeHref = routeSearchParams.from === "profile-private" ? "/profile/private" : "/dashboard";
@@ -86,11 +84,11 @@ export default async function StoryPage({
     <StoryViewer
       currentStoryId={story.id}
       stories={orderedStories}
-      canDeleteCurrent={currentUser?.id === story.author.id}
+      canDeleteCurrent={currentUser.id === story.author.id}
       closeHref={closeHref}
       storyReactions={Object.fromEntries(reactionSummaries)}
       deleteButton={
-        currentUser?.id === story.author.id ? (
+        currentUser.id === story.author.id ? (
           <StoryDeleteButton
             storyId={story.id}
             isHighlighted={isHighlighted}
